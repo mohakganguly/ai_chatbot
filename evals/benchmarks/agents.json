@@ -1,0 +1,52 @@
+[
+  {
+    "question": "Summarize the uploaded document.",
+    "ground_truth": "The assistant should retrieve the uploaded document and generate a concise summary.",
+    "expected_tools": ["retriever"]
+  },
+  {
+    "question": "Compare my uploaded resume with the latest Python backend job requirements.",
+    "ground_truth": "The assistant should compare the resume against current backend job requirements.",
+    "expected_tools": ["retriever", "web_search"]
+  },
+  {
+    "question": "Who is the current CEO of OpenAI?",
+    "ground_truth": "The assistant should retrieve the latest information using web search.",
+    "expected_tools": ["web_search"]
+  },
+  {
+    "question": "Summarize my uploaded notes and explain them.",
+    "ground_truth": "The assistant should summarize the uploaded notes and explain the concepts.",
+    "expected_tools": ["retriever"]
+  },
+  {
+    "question": "Calculate 245 × 874.",
+    "ground_truth": "214130",
+    "expected_tools": ["calculator"]
+  },
+  {
+    "question": "Write Python code to reverse a linked list.",
+    "ground_truth": "The assistant should generate Python code for linked list reversal.",
+    "expected_tools": []
+  },
+  {
+    "question": "Compare the uploaded company policy with the latest labor regulations.",
+    "ground_truth": "The assistant should compare the uploaded document against current regulations.",
+    "expected_tools": ["retriever", "web_search"]
+  },
+  {
+    "question": "Summarize today's AI news.",
+    "ground_truth": "The assistant should summarize recent AI news.",
+    "expected_tools": ["web_search"]
+  },
+  {
+    "question": "Find all mentions of Docker in the uploaded documentation.",
+    "ground_truth": "The assistant should retrieve Docker-related sections.",
+    "expected_tools": ["retriever"]
+  },
+  {
+    "question": "Explain the uploaded PDF using simple language.",
+    "ground_truth": "The assistant should explain the uploaded PDF in simple language.",
+    "expected_tools": ["retriever"]
+  }
+]

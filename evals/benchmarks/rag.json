@@ -1,0 +1,82 @@
+[
+  {
+    "question": "What is Retrieval-Augmented Generation (RAG)?",
+    "ground_truth": "RAG combines information retrieval with language generation by retrieving relevant documents before generating a response."
+  },
+  {
+    "question": "Explain the purpose of embeddings in a RAG system.",
+    "ground_truth": "Embeddings convert text into dense vectors that enable semantic similarity search."
+  },
+  {
+    "question": "What is vector similarity search?",
+    "ground_truth": "Vector similarity search retrieves documents whose embeddings are closest to the query embedding."
+  },
+  {
+    "question": "Why is reranking used after retrieval?",
+    "ground_truth": "Reranking improves relevance by reordering retrieved documents using a stronger relevance model."
+  },
+  {
+    "question": "What is context filtering in RAG?",
+    "ground_truth": "Context filtering removes irrelevant retrieved documents before answer generation."
+  },
+  {
+    "question": "Explain chunking in document retrieval.",
+    "ground_truth": "Chunking splits documents into smaller pieces to improve retrieval accuracy."
+  },
+  {
+    "question": "What is recursive text splitting?",
+    "ground_truth": "Recursive text splitting breaks text hierarchically while preserving semantic boundaries."
+  },
+  {
+    "question": "Why are citations important in enterprise RAG?",
+    "ground_truth": "Citations allow users to verify the source of generated information."
+  },
+  {
+    "question": "What are hallucinations in RAG systems?",
+    "ground_truth": "Hallucinations occur when the model generates unsupported or incorrect information."
+  },
+  {
+    "question": "Explain dense retrieval.",
+    "ground_truth": "Dense retrieval uses embedding similarity instead of keyword matching."
+  },
+  {
+    "question": "Explain sparse retrieval.",
+    "ground_truth": "Sparse retrieval uses lexical methods such as BM25."
+  },
+  {
+    "question": "Difference between BM25 and embeddings.",
+    "ground_truth": "BM25 is keyword based while embeddings capture semantic similarity."
+  },
+  {
+    "question": "What is Graph RAG?",
+    "ground_truth": "Graph RAG augments retrieval using graph relationships between entities and documents."
+  },
+  {
+    "question": "What is metadata filtering?",
+    "ground_truth": "Metadata filtering restricts retrieval using document metadata such as source or author."
+  },
+  {
+    "question": "Why normalize embeddings?",
+    "ground_truth": "Normalization improves cosine similarity calculations."
+  },
+  {
+    "question": "What is semantic search?",
+    "ground_truth": "Semantic search retrieves documents based on meaning rather than exact keywords."
+  },
+  {
+    "question": "What is Top-K retrieval?",
+    "ground_truth": "Top-K retrieval returns the K most relevant retrieved documents."
+  },
+  {
+    "question": "Why use Qdrant?",
+    "ground_truth": "Qdrant is a vector database optimized for similarity search."
+  },
+  {
+    "question": "Explain hybrid search.",
+    "ground_truth": "Hybrid search combines lexical and vector retrieval."
+  },
+  {
+    "question": "Why is query rewriting useful?",
+    "ground_truth": "Query rewriting reformulates ambiguous user queries to improve retrieval."
+  }
+]

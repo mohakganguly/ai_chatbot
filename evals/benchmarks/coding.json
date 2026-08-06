@@ -1,0 +1,72 @@
+[
+    {
+        "question": "Explain Merge Sort.",
+        "ground_truth": "Merge Sort is a divide-and-conquer sorting algorithm that recursively divides the array into halves, sorts each half, and merges them. It has O(n log n) time complexity and O(n) auxiliary space.",
+        "difficulty": "easy",
+        "category": "coding",
+        "tags": ["algorithms", "sorting"]
+    },
+    {
+        "question": "What is the difference between BFS and DFS?",
+        "ground_truth": "Breadth-First Search explores nodes level by level using a queue, while Depth-First Search explores as deep as possible before backtracking using a stack or recursion.",
+        "difficulty": "easy",
+        "category": "coding",
+        "tags": ["graphs"]
+    },
+    {
+        "question": "Explain Dynamic Programming.",
+        "ground_truth": "Dynamic Programming solves optimization problems by breaking them into overlapping subproblems and storing previously computed results to avoid redundant computation.",
+        "difficulty": "medium",
+        "category": "coding",
+        "tags": ["dynamic programming"]
+    },
+    {
+        "question": "What is memoization?",
+        "ground_truth": "Memoization is a Dynamic Programming technique that caches the results of recursive function calls so repeated computations are avoided.",
+        "difficulty": "easy",
+        "category": "coding",
+        "tags": ["dynamic programming"]
+    },
+    {
+        "question": "What is the difference between a process and a thread?",
+        "ground_truth": "A process has its own memory space and resources, whereas threads within the same process share memory and resources but execute independently.",
+        "difficulty": "medium",
+        "category": "coding",
+        "tags": ["operating systems"]
+    },
+    {
+        "question": "What is a mutex?",
+        "ground_truth": "A mutex is a synchronization primitive that allows only one thread at a time to access a shared resource, preventing race conditions.",
+        "difficulty": "medium",
+        "category": "coding",
+        "tags": ["operating systems", "concurrency"]
+    },
+    {
+        "question": "Explain the ACID properties in DBMS.",
+        "ground_truth": "ACID stands for Atomicity, Consistency, Isolation, and Durability. These properties ensure reliable and consistent database transactions.",
+        "difficulty": "easy",
+        "category": "coding",
+        "tags": ["dbms"]
+    },
+    {
+        "question": "What is SQL indexing?",
+        "ground_truth": "An index is a data structure that improves query performance by allowing faster retrieval of rows without scanning the entire table.",
+        "difficulty": "medium",
+        "category": "coding",
+        "tags": ["sql", "dbms"]
+    },
+    {
+        "question": "What is the difference between REST and GraphQL?",
+        "ground_truth": "REST exposes multiple endpoints for different resources, whereas GraphQL exposes a single endpoint that allows clients to request exactly the required data.",
+        "difficulty": "medium",
+        "category": "coding",
+        "tags": ["backend", "api"]
+    },
+    {
+        "question": "What is the difference between GET and POST HTTP methods?",
+        "ground_truth": "GET retrieves resources and should not modify server state, while POST submits data to the server to create or process resources.",
+        "difficulty": "easy",
+        "category": "coding",
+        "tags": ["backend", "http"]
+    }
+]
