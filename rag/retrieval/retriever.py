@@ -38,6 +38,7 @@ class Retriever:
     def retrieve(
         self,
         query: str,
+        thread_id: str,
         top_k: int = RERANK_TOP_K
     ) -> List[Document]:
 
@@ -54,7 +55,8 @@ class Retriever:
 
         documents = self.vector_store.search(
             query_vector=query_vector,
-            limit=top_k
+            limit=top_k,
+            thread_id=thread_id,
         )
 
         logger.info(

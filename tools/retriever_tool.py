@@ -44,14 +44,19 @@ class RetrieverTool(BaseTool):
             result = self.service.retrieve(
 
                 query=context.query,
+                thread_id=context.metadata["thread_id"],
 
                 messages=context.messages,
 
-                current_documents=context.metadata.get(
-                    "current_documents",
-                    [],
-                ),
+            
             )
+            print("=" * 80)
+            print("Retrieved docs:", len(result.documents))
+
+            for doc in result.documents:
+                print(doc.metadata)
+
+            print("=" * 80)
             extracted_metadata = {}
             if isinstance(result, dict):
                 extracted_metadata = result.get("metadata", {})

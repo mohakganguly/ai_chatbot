@@ -54,8 +54,8 @@ class RetrievalService:
     def retrieve(
         self,
         query: str,
+        thread_id: str,
         messages: list[BaseMessage],
-        current_documents: list[str] | None = None,
     ) -> RetrievalResult:
         """
         Execute the enterprise retrieval pipeline.
@@ -130,43 +130,11 @@ class RetrievalService:
             ):
 
                 documents = self.retriever.retrieve(
-                    retrieval_query
+                    query=retrieval_query,
+                    thread_id=thread_id,
                 )
 
-                logger.info(
-                    "Current uploaded docs : %s",
-                    current_documents,
-                )
 
-                for doc in documents:
-
-                    logger.info(
-                        "Metadata source=%s | file_name=%s",
-                        doc.metadata.get("source"),
-                        doc.metadata.get("file_name"),
-                    )
-
-                # ------------------------------------------
-                # Filter uploaded documents
-                # ------------------------------------------
-
-                if current_documents:
-
-                    documents = [
-
-                        doc
-
-                        for doc in documents
-
-                        if doc.metadata.get("source")
-                        in current_documents
-
-                    ]
-
-                logger.info(
-                    "Documents after file filtering : %d",
-                    len(documents),
-                )
 
                 logger.info(
                     "Retrieved %d documents",

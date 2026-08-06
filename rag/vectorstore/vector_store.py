@@ -17,6 +17,9 @@ from qdrant_client.models import (
     Distance,
     VectorParams,
     PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
 )
 
 from config import (
@@ -65,6 +68,7 @@ class QdrantVectorStore:
     def search(
         self,
         query_vector: List[float],
+        thread_id: str|None = None,
         limit: int = 5,
     ) -> List[Document]:
 
@@ -77,9 +81,39 @@ class QdrantVectorStore:
 
         try:
 
+            # filters = []
+
+            # if thread_id is not None:
+
+            #     filters.append(
+            #         FieldCondition(
+            #             key="thread_id",
+            #             match=MatchValue(value=thread_id),
+            #         )
+            #     )
+
+            query_filter = (
+                Filter(
+                    must=[
+                        FieldCondition(
+                            key="thread_id",
+                            match=MatchValue(value=thread_id),
+                        )
+                    ]
+                )
+                if thread_id
+                else None
+            )
+            logger.info(
+                "Searching collection '%s' for thread '%s'",
+                COLLECTION_NAME,
+                thread_id,
+            )
+            
             results = self.client.query_points(
                 collection_name=COLLECTION_NAME,
                 query=query_vector,
+                query_filter=query_filter,
                 limit=limit,
             ).points
 

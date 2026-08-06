@@ -65,3 +65,39 @@ class Message(Base):
         DateTime,
         default=datetime.now()
     )
+
+class ConversationDocument(Base):
+
+    __tablename__ = "conversation_documents"
+
+    id = Column(
+        String,
+        primary_key=True
+    )
+
+    thread_id = Column(
+        String,
+        ForeignKey("conversations.thread_id"),
+        nullable=False
+    )
+
+    filename = Column(
+        String,
+        nullable=False
+    )
+
+    filepath = Column(
+        String,
+        nullable=False
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="INDEXED"
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.now
+    )

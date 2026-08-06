@@ -59,6 +59,7 @@ class IndexingPipeline:
 
     def ingest(
         self,
+        thread_id: str,
         file_path: str
     ):
 
@@ -102,6 +103,11 @@ class IndexingPipeline:
         chunks = self.chunker.chunk(
             documents
         )
+        for chunk in chunks:
+
+            chunk.metadata["thread_id"] = thread_id
+
+            chunk.metadata["filename"] = Path(file_path).name
 
         logger.info(
             "Created %d chunks",

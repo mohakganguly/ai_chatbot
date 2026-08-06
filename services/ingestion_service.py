@@ -30,7 +30,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 from typing import List
-
+from db.repository import save_document,document_exists
 from utils.logger import get_logger
 
 from rag.ingestion.loader import load_document
@@ -50,9 +50,9 @@ logger = get_logger(__name__)
 # Directory where uploaded files are stored
 # ---------------------------------------------------------
 
-DOCUMENTS_DIR = Path("documents")
+DOCUMENTS_ROOT = Path("documents")
 
-DOCUMENTS_DIR.mkdir(
+DOCUMENTS_ROOT.mkdir(
     exist_ok=True
 )
 
@@ -77,27 +77,56 @@ class IngestionService:
 
     def save_uploaded_files(
         self,
+        thread_id: str,
         uploaded_files,
     ) -> List[Path]:
+
+        thread_dir = DOCUMENTS_ROOT / thread_id
+
+        thread_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         saved_paths = []
 
         for uploaded_file in uploaded_files:
 
             destination = (
-                DOCUMENTS_DIR /
+                thread_dir /
                 uploaded_file.name
             )
 
             with open(destination, "wb") as f:
+
                 shutil.copyfileobj(
                     uploaded_file,
-                    f
+                    f,
                 )
+            if document_exists(
+                thread_id,
+                uploaded_file.name,
+            ):
+
+                logger.info(
+                    "%s already exists.",
+                    uploaded_file.name,
+                )
+
+                continue
+            save_document(
+
+                thread_id=thread_id,
+
+                filename=uploaded_file.name,
+
+                filepath=str(destination),
+
+            )
 
             logger.info(
                 "Saved %s",
-                destination
+                destination,
             )
 
             saved_paths.append(destination)
@@ -110,6 +139,7 @@ class IngestionService:
 
     def ingest_documents(
         self,
+        thread_id: str,
         file_paths: List[Path],
     ):
 
@@ -134,8 +164,15 @@ class IngestionService:
             docs = clean_documents(docs)
 
             docs = enrich_metadata(docs)
-
+            for doc in docs:
+                doc.metadata["thread_id"] = thread_id
             chunks = chunk_documents(docs)
+
+            for chunk in chunks:
+
+                chunk.metadata["thread_id"] = thread_id
+
+                chunk.metadata["filename"] = path.name
 
             embedded_chunks = (
                 self.embedder.embed_documents(

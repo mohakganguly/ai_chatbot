@@ -8,18 +8,24 @@ from core.llm import title_llm
 ######## Repository Functions ########
 from db.repository import (
     create_conversation,
+    conversation_exists,
     save_message,
     get_conversations,
     get_messages,
-    update_conversation_timestamp
+    update_conversation_timestamp,
+    update_conversation_title
 )
-from services.ingestion_service import IngestionService
+from ui.sidebar import render_sidebar
+from ui.messages import render_messages
+from ui.documents import render_documents
+from ui.uploader import render_uploader
+from services.document_service import DocumentService
 from langchain_core.messages import AIMessageChunk
 # ==========================================================
 # Services
 # ==========================================================
 
-ingestion_service = IngestionService()
+document_service = DocumentService()
 ########Utility Functions###############3
 
 def get_thread_id():
@@ -30,26 +36,8 @@ def reset_chat():
     thread_id=get_thread_id()
     st.session_state["thread_id"] = thread_id
     st.session_state["message_history"]=[]
-    # add_threads(thread_id)
+    
 
-# def add_threads(
-#     thread_id,
-#     title="New Chat",
-#     first_message=""
-# ):
-#     if thread_id not in st.session_state["chat_threads"]:
-#
-#         st.session_state["chat_threads"][thread_id] = {
-#             "title": title,
-#             "created_at": datetime.now(),
-#             "updated_at": datetime.now(),
-#             "first_message": first_message
-#         }
-
-def load_conversation(thread_id):
-    state = chatbot.get_state(config={'configurable': {'thread_id': thread_id}})
-    # Check if messages key exists in state values, return empty list if not
-    return state.values.get('messages', [])
 
 def generate_chat_title(user_query):
 
@@ -110,145 +98,144 @@ if "message_history" not in st.session_state:
 if "thread_id" not in st.session_state:
     st.session_state["thread_id"]=get_thread_id()
 
-if "current_documents" not in st.session_state:
-    st.session_state["current_documents"] = []
+if "attached_documents" not in st.session_state:
+    st.session_state["attached_documents"] = []
 
-# if "chat_threads" not in st.session_state:
-#     st.session_state["chat_threads"]={}
-
-# add_threads(st.session_state["thread_id"])
+if "processed_uploads" not in st.session_state:
+    st.session_state["processed_uploads"] = set()
 
 ################ Sidebar ###################
 
-st.sidebar.title("AI Chatbot")
+conversations = get_conversations()
 
-# ==========================================================
-# Knowledge Base
-# ==========================================================
-
-st.sidebar.header("DOCUMENTS")
-
-uploaded_files = st.sidebar.file_uploader(
-    "Upload Documents",
-    type=["pdf", "docx", "txt", "md", "markdown", "html", "htm"],
-    accept_multiple_files=True,
+new_chat, selected_thread = render_sidebar(
+    conversations
 )
+if new_chat:
+
+    st.session_state["thread_id"] = str(uuid.uuid4())
+
+    st.session_state["message_history"] = []
+
+    st.session_state["attached_documents"] = []
+    st.session_state["processed_uploads"] = set()
+    st.rerun()
+
+# ---------------------------------------------------------
+# Load Selected Conversation
+# ---------------------------------------------------------
+
+if selected_thread:
+
+    db_messages = get_messages(selected_thread)
+
+    st.session_state["thread_id"] = selected_thread
+
+    st.session_state["message_history"] = []
+    st.session_state["processed_uploads"] = set()
+    for message in db_messages:
+
+        st.session_state["message_history"].append(
+
+            {
+                "role": message.role,
+                "content": message.content,
+            }
+
+        )
+
+    st.session_state["attached_documents"] = (
+
+        document_service.list_documents(
+            selected_thread
+        )
+
+    )
+
+    st.rerun()
+################### Main UI ###################
+render_messages(
+    st.session_state["message_history"]
+)
+delete_document = render_documents(
+
+    st.session_state[
+        "attached_documents"
+    ]
+
+)
+
+if delete_document:
+
+    document = next(
+
+        doc
+
+        for doc in st.session_state[
+            "attached_documents"
+        ]
+
+        if doc.id == delete_document
+
+    )
+
+    document_service.remove_document(
+        document
+    )
+
+    st.session_state[
+        "attached_documents"
+    ] = document_service.list_documents(
+
+        st.session_state[
+            "thread_id"
+        ]
+
+    )
+
+    st.rerun()
+
+uploaded_files = render_uploader()
 
 if uploaded_files:
 
-    st.sidebar.success(
-        f"{len(uploaded_files)} file(s) selected."
-    )
+    new_files = []
 
-    if st.sidebar.button(
-        "📥 Index Documents",
-        use_container_width=True,
-    ):
+    for uploaded_file in uploaded_files:
 
-        with st.spinner(
-            "Indexing documents..."
-        ):
+        # Skip files we've already processed during this session
+        if uploaded_file.name in st.session_state["processed_uploads"]:
+            continue
 
-            saved_paths = (
-                ingestion_service.save_uploaded_files(
-                    uploaded_files
-                )
-            )
-            result = (
-                ingestion_service.ingest_documents(
-                    saved_paths
-                )
-            )
-
-            # Store currently uploaded documents
-            st.session_state["current_documents"] = [
-
-                file.name
-
-                for file in uploaded_files
-
-            ]
-
-
-
-        st.sidebar.success(
-            f"""
-Indexed Successfully
-
-Documents : {result['documents']}
-Chunks : {result['chunks']}
-"""
+        st.session_state["processed_uploads"].add(
+            uploaded_file.name
         )
 
-st.sidebar.divider()
+        new_files.append(uploaded_file)
 
-if st.sidebar.button("New Chat"):
-    reset_chat()
+    if new_files:
 
-st.sidebar.header("Recents")
-# ==========================================================
-# Recent Conversations
-# ==========================================================
+        thread_id = st.session_state["thread_id"]
 
-conversations = get_conversations()
+        if not conversation_exists(thread_id):
 
-for conversation in conversations:
-
-    if st.sidebar.button(
-        conversation.title,
-        key=conversation.thread_id,
-        use_container_width=True,
-    ):
-
-        st.session_state["thread_id"] = conversation.thread_id
-
-        db_messages = get_messages(
-            conversation.thread_id
-        )
-
-        temp_messages = []
-
-        for msg in db_messages:
-
-            temp_messages.append(
-                {
-                    "role": msg.role,
-                    "content": msg.content,
-                }
+            create_conversation(
+                thread_id=thread_id,
+                title="New Chat",
             )
 
-        st.session_state["message_history"] = temp_messages
+        with st.spinner("Indexing documents..."):
+
+            st.session_state["attached_documents"] = (
+                document_service.upload_documents(
+                    thread_id=thread_id,
+                    uploaded_files=new_files,
+                )
+            )
 
         st.rerun()
-################### Main UI ###################
-for message in st.session_state["message_history"]:
 
-    if message["role"] == "user":
-        st.markdown(
-            f"""
-            <div class="user-msg">
-                <div class="user-bubble">
-                    {message['content']}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
 
-    else:
-        st.markdown(
-            f"""
-            <div class="ai-msg">
-                <div class="ai-bubble">
-                    {message['content']}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-# for message in st.session_state["message_history"]:
-#     with st.chat_message(message["role"]):
-#         st.text(message["content"])
 
 user_input=st.chat_input("Type here")
 
@@ -268,19 +255,29 @@ if user_input:
     with st.chat_message("user"):
         st.text(user_input)
 
-    if len(st.session_state["message_history"]) == 1:
-        title = generate_chat_title(user_input)
+        if len(st.session_state["message_history"]) == 1:
 
-        # add_threads(
-        #     thread_id=st.session_state["thread_id"],
-        #     title=title,
-        #     first_message=user_input
-        # )
+            title = generate_chat_title(user_input)
 
-        create_conversation(
-            thread_id=st.session_state["thread_id"],
-            title=title
-        )
+            if not conversation_exists(
+                st.session_state["thread_id"]
+            ):
+
+                create_conversation(
+
+                    thread_id=st.session_state["thread_id"],
+
+                    title=title,
+                )
+
+            else:
+
+                update_conversation_title(
+
+                    thread_id=st.session_state["thread_id"],
+
+                    title=title,
+                )
 
         save_message(
             thread_id=st.session_state["thread_id"],
@@ -318,12 +315,11 @@ if user_input:
                         "status": "PLANNING",
                         "error": None,
                         "metadata": {
-                            "current_documents":
-
-                                st.session_state.get(
-                                    "current_documents",
-                                    [],
-                                )
+                            "thread_id": st.session_state["thread_id"],
+                             "documents": [
+                                    doc.filename
+                                    for doc in st.session_state["attached_documents"]
+                            ],
 
                         },
                     },

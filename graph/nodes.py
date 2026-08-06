@@ -170,7 +170,7 @@ def retrieval_node(
         result = retrieval_service.retrieve(
 
             query=state["query"],
-
+            thread_id=state["metadata"]["thread_id"],
             messages=state["messages"][-6:],
         )
 
