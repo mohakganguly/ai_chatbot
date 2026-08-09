@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from config import CHUNKING_STRATEGY
 
-from rag.chunking.recursive import RecursiveChunker
+from rag.chunking.chunker import HybridChunker
 
 from utils.logger import get_logger
 
@@ -25,9 +25,9 @@ class ChunkingFactory:
             strategy
         )
 
-        if strategy == "recursive":
+        if strategy == "hybrid":
 
-            return RecursiveChunker()
+            return HybridChunker()
 
         raise ValueError(
             f"Unknown chunking strategy: {strategy}"

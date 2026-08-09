@@ -298,7 +298,7 @@ if __name__ == "__main__":
     from rag.ingestion.parser import parse_documents
     from rag.ingestion.cleaner import clean_documents
     from rag.ingestion.metadata import enrich_metadata
-    from rag.chunking.recursive import chunk_documents
+    from rag.chunking.chunker import chunk_documents
     from rag.embedding.embedding_model import get_embedding_model
 
     pdf_path = "documents/Must KNOW.pdf"
