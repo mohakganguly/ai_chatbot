@@ -7,7 +7,7 @@ Centralized initialization of all LLMs used in the project.
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mistralai import ChatMistralAI
-from langchain_huggingface import HuggingFaceEmbeddings
+from rag.embedding.embedding_model import get_embedding_model
 from config import *
 from observability.callbacks import EnterpriseCallback
 callback = EnterpriseCallback()
@@ -54,18 +54,11 @@ evaluation_llm = ChatMistralAI(
     temperature=0,
     callbacks=[callback],
 )
-evaluation_embeddings = HuggingFaceEmbeddings(
-
-    model_name="BAAI/bge-small-en-v1.5",
-
-    model_kwargs={
-        "device": "cpu",
-    },
-
-    encode_kwargs={
-        "normalize_embeddings": True,
-    },
-)
+def get_evaluation_embeddings():
+    """
+    Get the embedding model for evaluation.
+    """
+    return get_embedding_model()
 
 from graph.router_schema import RouterOutput
 

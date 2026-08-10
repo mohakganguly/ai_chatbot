@@ -12,7 +12,7 @@ Responsible for:
 from __future__ import annotations
 
 import time
-
+import re
 from core.llm import rewriter_llm
 
 from rag.prompts.query_rewriter_template import (
@@ -147,7 +147,7 @@ class QueryRewriter:
         # Reject SQL
 
         if any(
-            keyword in rewritten_upper
+            re.search(rf"\b{re.escape(keyword)}\b", rewritten_upper)
             for keyword in self.SQL_KEYWORDS
         ):
 

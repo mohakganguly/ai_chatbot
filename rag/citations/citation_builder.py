@@ -13,6 +13,7 @@ from langchain_core.documents import Document
 
 from utils.logger import get_logger
 
+
 logger = get_logger(__name__)
 
 
@@ -27,10 +28,11 @@ class CitationBuilder:
     def build(
         self,
         documents: List[Document],
-    ) -> str:
+    ) -> List[dict]:
 
         logger.info(
-            "Building citations."
+            "Building citations from %d document(s).",
+            len(documents),
         )
 
         citations = []
@@ -63,9 +65,9 @@ class CitationBuilder:
                 }
             )
 
-        return citations
-
         logger.info(
             "Generated %d citation(s).",
             len(citations),
         )
+
+        return citations

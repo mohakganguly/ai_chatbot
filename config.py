@@ -74,9 +74,12 @@ RETRIEVAL_TOP_K = 20
 #############################################
 # Reranking
 #############################################
-RERANKER_MODEL = "BAAI/bge-reranker-base" #cross-encoder/ms-marco-MiniLM-L-6-v2
+DENSE_TOP_K = 15
+SPARSE_TOP_K = 15
+HYBRID_TOP_K = 10
 RERANK_TOP_K = 5
-MIN_RELEVANCE_SCORE = 0.45
+
+RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 # ==========================================================
 # Context Filter

@@ -12,7 +12,7 @@ from tools.base import (
 
 
 from rag.services.retrieval_service import (
-    RetrievalService,
+    get_retrieval_service,
 )
 
 from utils.logger import get_logger
@@ -30,7 +30,7 @@ class RetrieverTool(BaseTool):
 
     def __init__(self):
 
-        self.service = RetrievalService()
+        self.service = get_retrieval_service()
 
     def invoke(
         self,

@@ -43,7 +43,7 @@ from graph.history import build_history
 
 logger = get_logger(__name__)
 
-from rag.services.retrieval_service import RetrievalService
+from rag.services.retrieval_service import get_retrieval_service
 
 
 
@@ -52,7 +52,7 @@ from rag.services.retrieval_service import RetrievalService
 # ==========================================================
 
 router = QueryRouter()
-retrieval_service = RetrievalService()
+retrieval_service = get_retrieval_service()
 
 prompt_builder = PromptBuilder()
 

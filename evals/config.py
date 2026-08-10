@@ -18,7 +18,7 @@ from ragas.metrics import (
 
 from core.llm import (
     evaluation_llm,
-    evaluation_embeddings,
+    get_evaluation_embeddings,
 )
 
 # ----------------------------------------------------------
@@ -28,7 +28,7 @@ from core.llm import (
 RAGAS_LLM = LangchainLLMWrapper(
     evaluation_llm
 )
-
+evaluation_embeddings = get_evaluation_embeddings()
 RAGAS_EMBEDDINGS = LangchainEmbeddingsWrapper(
     evaluation_embeddings
 )
