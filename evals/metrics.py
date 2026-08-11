@@ -38,3 +38,7 @@ class EvaluationMetrics:
     tool_calls: int = 0
 
     citation_count: int = 0
+
+    retrieved_documents: int = 0
+
+    retriever_used: bool = False

@@ -34,6 +34,7 @@ from evals.config import (
 
 from utils.logger import get_logger
 
+
 logger = get_logger(__name__)
 
 
@@ -69,6 +70,38 @@ class RagasRunner:
             retrieved_contexts=sample.contexts,
 
             reference=sample.ground_truth,
+
+        )
+
+    # =====================================================
+    # Validate Samples
+    # =====================================================
+
+    @staticmethod
+    def _validate_sample(
+        sample: EvaluationSample,
+    ) -> None:
+
+        if not sample.question.strip():
+
+            raise ValueError(
+                "Evaluation question cannot be empty."
+            )
+
+        if not sample.answer.strip():
+
+            raise ValueError(
+                f"Empty chatbot answer for question: "
+                f"{sample.question}"
+            )
+
+        logger.info(
+            "Evaluation sample validated | "
+            "contexts=%d | citations=%d | "
+            "ground_truth=%s",
+            len(sample.contexts),
+            len(sample.citations),
+            sample.ground_truth is not None,
         )
 
     # =====================================================
@@ -76,18 +109,19 @@ class RagasRunner:
     # =====================================================
 
     def _build_dataset(
-
         self,
-
         samples: List[EvaluationSample],
-
     ) -> EvaluationDataset:
 
         logger.info(
-
             "Building RAGAS Evaluation Dataset"
-
         )
+
+        for sample in samples:
+
+            self._validate_sample(
+                sample
+            )
 
         ragas_samples = [
 
@@ -104,11 +138,8 @@ class RagasRunner:
         )
 
         logger.info(
-
             "Dataset Size : %d",
-
             len(ragas_samples),
-
         )
 
         return dataset
@@ -122,12 +153,32 @@ class RagasRunner:
         samples: List[EvaluationSample],
     ) -> List[EvaluationResult]:
 
+        if not samples:
+
+            logger.warning(
+                "No evaluation samples supplied."
+            )
+
+            return []
+
         logger.info(
             "Starting RAGAS Evaluation"
         )
 
         dataset = self._build_dataset(
             samples
+        )
+
+        # -------------------------------------------------
+        # Log evaluation configuration
+        # -------------------------------------------------
+
+        logger.info(
+            "RAGAS Metrics : %s",
+            [
+                metric.__class__.__name__
+                for metric in self.metrics
+            ],
         )
 
         try:
@@ -160,6 +211,10 @@ class RagasRunner:
             "RAGAS Evaluation Finished"
         )
 
+        # =================================================
+        # Convert Results
+        # =================================================
+
         scores = ragas_result.to_pandas()
 
         logger.info(
@@ -167,22 +222,36 @@ class RagasRunner:
             len(scores),
         )
 
+        if len(scores) != len(samples):
+
+            raise RuntimeError(
+                "RAGAS returned a different number "
+                "of results than the number of "
+                "evaluation samples."
+            )
+
         results: List[
             EvaluationResult
         ] = []
 
-        # ===============================================
-        # Convert RAGAS Results
-        # ===============================================
+        score_rows = scores.to_dict(
+            orient="records"
+        )
+
+        # =================================================
+        # Build EvaluationResults
+        # =================================================
 
         for sample, row in zip(
             samples,
-            scores.to_dict(
-                orient="records"
-            ),
+            score_rows,
         ):
 
             metrics = EvaluationMetrics(
+
+                # -----------------------------------------
+                # RAGAS
+                # -----------------------------------------
 
                 faithfulness=row.get(
                     "faithfulness",
@@ -204,6 +273,10 @@ class RagasRunner:
                     0.0,
                 ),
 
+                # -----------------------------------------
+                # Enterprise Metrics
+                # -----------------------------------------
+
                 latency=sample.latency,
 
                 planner_iterations=sample.metadata.get(
@@ -216,8 +289,18 @@ class RagasRunner:
                     0,
                 ),
 
-                citations=len(
+                citation_count=len(
                     sample.citations
+                ),
+
+                retrieved_documents=sample.metadata.get(
+                    "retrieved_documents",
+                    len(sample.contexts),
+                ),
+
+                retriever_used=sample.metadata.get(
+                    "retriever_used",
+                    bool(sample.contexts),
                 ),
 
             )

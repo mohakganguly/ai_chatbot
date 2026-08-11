@@ -461,7 +461,7 @@ if delete_document:
 
     st.rerun()
 
-uploaded_files = render_uploader()
+uploaded_files = render_uploader(st.session_state["thread_id"])
 
 if uploaded_files:
 

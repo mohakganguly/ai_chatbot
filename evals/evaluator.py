@@ -8,13 +8,13 @@ Coordinates the complete evaluation workflow.
 Pipeline
 
 Question(s)
-      ↓
+↓
 Collector
-      ↓
+↓
 EvaluationSample(s)
-      ↓
+↓
 RAGAS Runner
-      ↓
+↓
 EvaluationResult(s)
 """
 
@@ -45,14 +45,15 @@ class Evaluator:
     # ---------------------------------------------------------
 
     def evaluate(
-            self,
-            question: str,
-            ground_truth: str | None = None,
+        self,
+        question: str,
+        ground_truth: str | None = None,
     ) -> EvaluationResult:
 
         sample = self.collector.collect(
             question
         )
+
         sample.ground_truth = ground_truth
 
         results = self.ragas.evaluate(
@@ -67,17 +68,27 @@ class Evaluator:
 
     def evaluate_batch(
         self,
-        questions: list[str],
+        samples: list[
+            tuple[str, str | None]
+        ],
     ) -> list[EvaluationResult]:
 
-        samples: list[EvaluationSample] = [
+        evaluation_samples: list[
+            EvaluationSample
+        ] = []
 
-            self.collector.collect(question)
+        for question, ground_truth in samples:
 
-            for question in questions
+            sample = self.collector.collect(
+                question
+            )
 
-        ]
+            sample.ground_truth = ground_truth
+
+            evaluation_samples.append(
+                sample
+            )
 
         return self.ragas.evaluate(
-            samples
+            evaluation_samples
         )
