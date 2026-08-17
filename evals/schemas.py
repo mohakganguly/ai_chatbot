@@ -28,7 +28,14 @@ class EvaluationSample:
 
     ground_truth: str | None = None
 
-    metadata: dict[str, Any] = field(default_factory=dict)
+    # Expected tools from the benchmark.
+    expected_tools: list[str] = field(
+        default_factory=list
+    )
+
+    metadata: dict[str, Any] = field(
+        default_factory=dict
+    )
 
 
 @dataclass

@@ -1,11 +1,21 @@
 import streamlit as st
-from langchain_core.messages import HumanMessage, AIMessage
+import threading
+import time
+
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage,
+    AIMessageChunk,
+)
+
 import uuid
-from datetime import datetime
-from backend import chatbot
+
+# from backend import chatbot
+
 from observability import tracing
-from core.llm import title_llm
-######## Repository Functions ########
+
+# from core.llm import title_llm
+
 from db.repository import (
     create_conversation,
     conversation_exists,
@@ -13,19 +23,261 @@ from db.repository import (
     get_conversations,
     get_messages,
     update_conversation_timestamp,
-    update_conversation_title
+    update_conversation_title,
 )
+
 from ui.sidebar import render_sidebar
 from ui.messages import render_messages
 from ui.documents import render_documents
 from ui.uploader import render_uploader
-from services.document_service import DocumentService
-from langchain_core.messages import AIMessageChunk
+
+# from services.document_service import DocumentService
+
+# from rag.embedding.embedding_model import (
+#     get_embedding_model,
+# )
+
+# from rag.retrieval.reranker import (
+#     get_reranker,
+# )
+
+from utils.logger import get_logger
+
+from concurrent.futures import ThreadPoolExecutor
+
+
+# ==========================================================
+# Startup Timing
+# ==========================================================
+
+APP_START = time.perf_counter()
+
+logger = get_logger(__name__)
+
+logger.info(
+    "[STARTUP] app.py execution started."
+)
+
+
+# ==========================================================
+# Chatbot
+# ==========================================================
+
+_chatbot = None
+_chatbot_lock = threading.Lock()
+
+
+def get_chatbot():
+
+    global _chatbot
+
+    if _chatbot is not None:
+
+        logger.info(
+            "[STARTUP] Returning cached chatbot instance."
+        )
+
+        return _chatbot
+
+    with _chatbot_lock:
+
+        if _chatbot is None:
+
+            start = time.perf_counter()
+
+            logger.info(
+                "[STARTUP] Initializing chatbot backend..."
+            )
+
+            from backend import chatbot
+
+            _chatbot = chatbot
+
+            elapsed = (
+                time.perf_counter()
+                - start
+            )
+
+            logger.info(
+                "[STARTUP] Chatbot backend initialized "
+                "in %.3f sec.",
+                elapsed,
+            )
+
+            logger.info(
+                "[STARTUP] Total time since app start: "
+                "%.3f sec.",
+                time.perf_counter() - APP_START,
+            )
+
+    return _chatbot
+
+
 # ==========================================================
 # Services
 # ==========================================================
 
-document_service = DocumentService()
+@st.cache_resource
+def get_document_service():
+
+    start = time.perf_counter()
+
+    logger.info(
+        "[STARTUP] Initializing DocumentService..."
+    )
+
+    from services.document_service import (
+        DocumentService,
+    )
+
+    service = DocumentService()
+
+    elapsed = (
+        time.perf_counter()
+        - start
+    )
+
+    logger.info(
+        "[STARTUP] DocumentService initialized "
+        "in %.3f sec.",
+        elapsed,
+    )
+
+    logger.info(
+        "[STARTUP] Total time since app start: "
+        "%.3f sec.",
+        time.perf_counter() - APP_START,
+    )
+
+    return service
+
+
+# ==========================================================
+# Background Model Warm-up
+# ==========================================================
+
+@st.cache_resource
+def start_model_warmup():
+
+    def warm_embedding():
+        from rag.embedding.embedding_model import (
+            get_embedding_model,
+        )
+        try:
+
+            logger.info(
+                "Starting embedding model warm-up."
+            )
+
+            embedder = get_embedding_model()
+
+            embedder.embed_query(
+                "warmup query"
+            )
+
+            logger.info(
+                "Embedding model warmed successfully."
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Embedding model warm-up failed."
+            )
+
+    def warm_reranker():
+
+        try:
+
+            logger.info(
+                "Starting reranker warm-up."
+            )
+
+            from rag.services.retrieval_service import (
+                get_retrieval_service,
+            )
+
+            retrieval_service = (
+                get_retrieval_service()
+            )
+
+            retrieval_service.reranker.warm_up()
+
+            logger.info(
+                "Reranker warmed successfully."
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Reranker warm-up failed."
+            )
+
+    def warm_models():
+
+        logger.info(
+            "Starting parallel background model warm-up."
+        )
+
+        with ThreadPoolExecutor(
+            max_workers=2,
+            thread_name_prefix="model-warmup",
+        ) as executor:
+
+            embedding_future = executor.submit(
+                warm_embedding
+            )
+
+            reranker_future = executor.submit(
+                warm_reranker
+            )
+
+            embedding_future.result()
+            reranker_future.result()
+
+        logger.info(
+            "Parallel background model warm-up completed."
+        )
+
+    thread = threading.Thread(
+        target=warm_models,
+        daemon=True,
+        name="rag-model-warmup",
+    )
+
+    thread.start()
+
+
+# ==========================================================
+# Start background warm-up
+# ==========================================================
+
+logger.info(
+    "[STARTUP] Starting background model warm-up at %.3f sec.",
+    time.perf_counter() - APP_START,
+)
+
+start_model_warmup()
+
+logger.info(
+    "[STARTUP] Background warm-up launched at %.3f sec.",
+    time.perf_counter() - APP_START,
+)
+
+
+# ==========================================================
+# Get services
+# ==========================================================
+
+logger.info(
+    "[STARTUP] Skipping DocumentService initialization during startup."
+)
+
+logger.info(
+    "[STARTUP] Top-level application setup completed at %.3f sec.",
+    time.perf_counter() - APP_START,
+)
+
 ########Utility Functions###############3
 
 def get_thread_id():
@@ -41,18 +293,20 @@ def reset_chat():
 
 def generate_chat_title(user_query):
 
+    from core.llm import title_llm
+
     prompt = f"""
-    Generate a concise title for this conversation.
+Generate a concise title for this conversation.
 
-    Rules:
-    - Maximum 5 words
-    - No quotes
-    - No punctuation
-    - Return title only
+Rules:
+- Maximum 5 words
+- No quotes
+- No punctuation
+- Return title only
 
-    Query:
-    {user_query}
-    """
+Query:
+{user_query}
+"""
 
     response = title_llm.invoke(prompt)
 
@@ -76,6 +330,7 @@ st.markdown("""
 }
 
 .ai-msg {
+
     display: flex;
     justify-content: flex-start;
     margin: 10px 0;
@@ -143,7 +398,7 @@ if selected_thread:
             }
 
         )
-
+    document_service = get_document_service()
     st.session_state["attached_documents"] = (
 
         document_service.list_documents(
@@ -154,8 +409,19 @@ if selected_thread:
 
     st.rerun()
 ################### Main UI ###################
+
+logger.info(
+    "[STARTUP] UI rendering begins at %.3f sec.",
+    time.perf_counter() - APP_START,
+)
+
 render_messages(
     st.session_state["message_history"]
+)
+
+logger.info(
+    "[STARTUP] Messages rendered at %.3f sec.",
+    time.perf_counter() - APP_START,
 )
 delete_document = render_documents(
 
@@ -166,7 +432,7 @@ delete_document = render_documents(
 )
 
 if delete_document:
-
+    document_service = get_document_service()
     document = next(
 
         doc
@@ -195,7 +461,7 @@ if delete_document:
 
     st.rerun()
 
-uploaded_files = render_uploader()
+uploaded_files = render_uploader(st.session_state["thread_id"])
 
 if uploaded_files:
 
@@ -214,7 +480,7 @@ if uploaded_files:
         new_files.append(uploaded_file)
 
     if new_files:
-
+        document_service = get_document_service()
         thread_id = st.session_state["thread_id"]
 
         if not conversation_exists(thread_id):
@@ -224,7 +490,12 @@ if uploaded_files:
                 title="New Chat",
             )
 
-        with st.spinner("Indexing documents..."):
+        with st.status(
+            "Processing documents...",
+            expanded=True,
+        ) as status:
+
+            st.write("📄 Processing documents...")
 
             st.session_state["attached_documents"] = (
                 document_service.upload_documents(
@@ -233,9 +504,20 @@ if uploaded_files:
                 )
             )
 
+            status.update(
+                label="✅ Documents indexed successfully",
+                state="complete",
+                expanded=False,
+            )
+
         st.rerun()
 
 
+
+logger.info(
+    "[STARTUP] Chat input reached / UI ready at %.3f sec.",
+    time.perf_counter() - APP_START,
+)
 
 user_input=st.chat_input("Type here")
 
@@ -294,7 +576,7 @@ if user_input:
     ########### STREAMING  ###################
 
     with st.chat_message("assistant"):
-
+        chatbot = get_chatbot()
         def response_stream():
 
             streamed_text = ""
@@ -385,7 +667,6 @@ if user_input:
     update_conversation_timestamp(
         st.session_state["thread_id"]
     )
-
 
 
 

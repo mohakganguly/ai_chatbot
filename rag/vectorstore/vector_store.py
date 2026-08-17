@@ -1,26 +1,35 @@
 """
-vectorstore.py
+vector_store.py
 
-Central wrapper around Qdrant.
+Hybrid Qdrant vector store.
+
+Retrieval architecture:
+
+Dense BGE embedding
+        +
+Qdrant BM25 sparse retrieval
+        ↓
+       RRF
+        ↓
+Hybrid candidates
+
+Responsibilities:
+1. Connect to Qdrant
+2. Create hybrid collection
+3. Store dense + BM25 vectors
+4. Perform hybrid retrieval
+5. Apply thread-level filtering
+6. Return LangChain Documents
 """
 
 from __future__ import annotations
 
 import time
-
 from typing import List
 
 from langchain_core.documents import Document
 
-from qdrant_client import QdrantClient
-from qdrant_client.models import (
-    Distance,
-    VectorParams,
-    PointStruct,
-    Filter,
-    FieldCondition,
-    MatchValue,
-)
+from qdrant_client import QdrantClient, models
 
 from config import (
     QDRANT_HOST,
@@ -33,8 +42,30 @@ from config import (
 from rag.models.embedded_chunk import EmbeddedChunk
 from utils.logger import get_logger
 
+
 logger = get_logger(__name__)
 
+
+# ==========================================================
+# Vector names
+# ==========================================================
+
+DENSE_VECTOR_NAME = "dense"
+BM25_VECTOR_NAME = "bm25"
+
+
+# ==========================================================
+# Retrieval configuration
+# ==========================================================
+
+DENSE_TOP_K = 15
+SPARSE_TOP_K = 15
+HYBRID_TOP_K = 10
+
+
+# ==========================================================
+# Qdrant Vector Store
+# ==========================================================
 
 class QdrantVectorStore:
 
@@ -65,106 +96,30 @@ class QdrantVectorStore:
 
             raise
 
-    def search(
-        self,
-        query_vector: List[float],
-        thread_id: str|None = None,
-        limit: int = 5,
-    ) -> List[Document]:
 
-        logger.info(
-            "Searching top-%d document(s).",
-            limit,
-        )
-
-        start = time.perf_counter()
-
-        try:
-
-            # filters = []
-
-            # if thread_id is not None:
-
-            #     filters.append(
-            #         FieldCondition(
-            #             key="thread_id",
-            #             match=MatchValue(value=thread_id),
-            #         )
-            #     )
-
-            query_filter = (
-                Filter(
-                    must=[
-                        FieldCondition(
-                            key="thread_id",
-                            match=MatchValue(value=thread_id),
-                        )
-                    ]
-                )
-                if thread_id
-                else None
-            )
-            logger.info(
-                "Searching collection '%s' for thread '%s'",
-                COLLECTION_NAME,
-                thread_id,
-            )
-            
-            results = self.client.query_points(
-                collection_name=COLLECTION_NAME,
-                query=query_vector,
-                query_filter=query_filter,
-                limit=limit,
-            ).points
-
-            documents = []
-
-            for result in results:
-
-                payload = dict(result.payload)
-
-                text = payload.pop("text")
-
-                payload["retrieval_score"] = result.score
-                documents.append(
-                    Document(
-                        page_content=text,
-                        metadata=payload,
-                    )
-                )
-
-            elapsed = time.perf_counter() - start
-
-            logger.info(
-                "Retrieved %d document(s) in %.3f sec.",
-                len(documents),
-                elapsed,
-            )
-
-            return documents
-
-        except Exception:
-
-            logger.exception(
-                "Vector search failed."
-            )
-
-            raise
+    # ======================================================
+    # Collection
+    # ======================================================
 
     def create_collection(self):
 
         logger.info(
-            "Checking collection '%s'.",
+            "Checking hybrid collection '%s'.",
             COLLECTION_NAME,
         )
 
-        start = time.perf_counter()
-
         try:
 
-            collections = self.client.get_collections().collections
+            collections = (
+                self.client
+                .get_collections()
+                .collections
+            )
 
-            names = [c.name for c in collections]
+            names = [
+                collection.name
+                for collection in collections
+            ]
 
             if COLLECTION_NAME in names:
 
@@ -176,25 +131,43 @@ class QdrantVectorStore:
                 return
 
             distance = (
-                Distance.COSINE
+                models.Distance.COSINE
                 if DISTANCE_METRIC.upper() == "COSINE"
-                else Distance.EUCLID
+                else models.Distance.EUCLID
+            )
+
+            logger.info(
+                "Creating hybrid collection."
             )
 
             self.client.create_collection(
+
                 collection_name=COLLECTION_NAME,
-                vectors_config=VectorParams(
-                    size=VECTOR_SIZE,
-                    distance=distance,
-                ),
+
+                vectors_config={
+
+                    DENSE_VECTOR_NAME:
+                        models.VectorParams(
+
+                            size=VECTOR_SIZE,
+
+                            distance=distance,
+                        ),
+                },
+
+                sparse_vectors_config={
+
+                    BM25_VECTOR_NAME:
+                        models.SparseVectorParams(
+
+                            modifier=models.Modifier.IDF,
+                        ),
+                },
             )
 
-            elapsed = time.perf_counter() - start
-
             logger.info(
-                "Collection '%s' created successfully in %.3f sec.",
+                "Hybrid collection '%s' created successfully.",
                 COLLECTION_NAME,
-                elapsed,
             )
 
         except Exception:
@@ -205,6 +178,51 @@ class QdrantVectorStore:
             )
 
             raise
+
+
+    # ======================================================
+    # Collection migration
+    # ======================================================
+
+    def recreate_collection(self):
+
+        """
+        Deletes the current collection and recreates it
+        with dense + BM25 vectors.
+
+        WARNING:
+        This deletes all existing points.
+
+        Existing documents must be re-indexed afterwards.
+        """
+
+        logger.warning(
+            "Recreating collection '%s'.",
+            COLLECTION_NAME,
+        )
+
+        if self.client.collection_exists(
+            COLLECTION_NAME
+        ):
+
+            self.client.delete_collection(
+                COLLECTION_NAME
+            )
+
+            logger.info(
+                "Old collection deleted."
+            )
+
+        self.create_collection()
+
+        logger.info(
+            "Hybrid collection recreated successfully."
+        )
+
+
+    # ======================================================
+    # Collection info
+    # ======================================================
 
     def collection_info(self):
 
@@ -232,15 +250,201 @@ class QdrantVectorStore:
 
             raise
 
+
+    # ======================================================
+    # Hybrid Search
+    # ======================================================
+
+    def search(
+        self,
+        query: str,
+        query_vector: List[float],
+        thread_id: str | None = None,
+        limit: int = HYBRID_TOP_K,
+    ) -> List[Document]:
+
+        logger.info(
+            "Hybrid search started."
+        )
+
+        logger.info(
+            "Dense candidates : %d",
+            DENSE_TOP_K,
+        )
+
+        logger.info(
+            "BM25 candidates  : %d",
+            SPARSE_TOP_K,
+        )
+
+        logger.info(
+            "RRF results      : %d",
+            limit,
+        )
+
+        start = time.perf_counter()
+
+        try:
+
+            # --------------------------------------------------
+            # Thread filter
+            # --------------------------------------------------
+
+            query_filter = (
+
+                models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="thread_id",
+                            match=models.MatchValue(
+                                value=thread_id
+                            ),
+                        )
+                    ]
+                )
+
+                if thread_id
+
+                else None
+            )
+
+            # --------------------------------------------------
+            # Dense retrieval
+            # --------------------------------------------------
+
+            dense_prefetch = models.Prefetch(
+
+                query=query_vector,
+
+                using=DENSE_VECTOR_NAME,
+
+                limit=DENSE_TOP_K,
+            )
+
+            # --------------------------------------------------
+            # BM25 retrieval
+            #
+            # Qdrant generates the sparse representation
+            # server-side.
+            # --------------------------------------------------
+
+            sparse_prefetch = models.Prefetch(
+
+                query=models.Document(
+
+                    text=query,
+
+                    model="Qdrant/bm25",
+                ),
+
+                using=BM25_VECTOR_NAME,
+
+                limit=SPARSE_TOP_K,
+            )
+
+            # --------------------------------------------------
+            # RRF Fusion
+            # --------------------------------------------------
+
+            results = self.client.query_points(
+
+                collection_name=COLLECTION_NAME,
+
+                prefetch=[
+                    dense_prefetch,
+                    sparse_prefetch,
+                ],
+
+                query=models.FusionQuery(
+
+                    fusion=models.Fusion.RRF
+                ),
+
+                query_filter=query_filter,
+
+                limit=limit,
+
+                with_payload=True,
+            ).points
+
+            # --------------------------------------------------
+            # Convert to LangChain Documents
+            # --------------------------------------------------
+
+            documents = []
+
+            for result in results:
+
+                payload = dict(
+                    result.payload or {}
+                )
+
+                text = payload.pop(
+                    "text",
+                    "",
+                )
+
+                payload["retrieval_score"] = (
+                    float(result.score)
+                    if result.score is not None
+                    else 0.0
+                )
+
+                payload["retrieval_method"] = "hybrid_rrf"
+
+                documents.append(
+
+                    Document(
+
+                        page_content=text,
+
+                        metadata=payload,
+                    )
+                )
+
+            elapsed = (
+                time.perf_counter()
+                - start
+            )
+
+            logger.info(
+                "Hybrid retrieval returned %d document(s) in %.3f sec.",
+                len(documents),
+                elapsed,
+            )
+
+            return documents
+
+        except Exception:
+
+            logger.exception(
+                "Hybrid Qdrant search failed."
+            )
+
+            raise
+
+
+    # ======================================================
+    # Upsert
+    # ======================================================
+
     def upsert_documents(
         self,
-        chunks: list[EmbeddedChunk]
+        chunks: list[EmbeddedChunk],
     ):
 
         logger.info(
             "Upserting %d embedded chunk(s).",
             len(chunks),
         )
+
+        if not chunks:
+
+            logger.warning(
+                "No chunks supplied for upsert."
+            )
+
+            return
 
         start = time.perf_counter()
 
@@ -252,33 +456,70 @@ class QdrantVectorStore:
 
                 document = chunk.document
 
-                vector = chunk.vector
+                dense_vector = chunk.vector
 
-                metadata = document.metadata.copy()
+                metadata = (
+                    document.metadata.copy()
+                )
+
+                text = document.page_content
 
                 payload = {
-                    "text": document.page_content,
+
+                    "text": text,
+
                     **metadata,
                 }
 
-                points.append(
-                    PointStruct(
-                        id=metadata["chunk_id"],
-                        vector=vector,
-                        payload=payload,
-                    )
+                # --------------------------------------------------
+                # Dense + BM25
+                #
+                # BM25 is generated by Qdrant from the text.
+                # --------------------------------------------------
+
+                point = models.PointStruct(
+
+                    id=metadata["chunk_id"],
+
+                    vector={
+
+                        DENSE_VECTOR_NAME:
+                            dense_vector,
+
+                        BM25_VECTOR_NAME:
+                            models.Document(
+
+                                text=text,
+
+                                model="Qdrant/bm25",
+                            ),
+                    },
+
+                    payload=payload,
                 )
 
+                points.append(point)
+
+            # --------------------------------------------------
+            # Upsert
+            # --------------------------------------------------
+
             self.client.upsert(
+
                 collection_name=COLLECTION_NAME,
+
                 wait=True,
+
                 points=points,
             )
 
-            elapsed = time.perf_counter() - start
+            elapsed = (
+                time.perf_counter()
+                - start
+            )
 
             logger.info(
-                "Successfully inserted %d vector(s) in %.3f sec.",
+                "Successfully inserted %d hybrid vector point(s) in %.3f sec.",
                 len(points),
                 elapsed,
             )
@@ -286,11 +527,15 @@ class QdrantVectorStore:
         except Exception:
 
             logger.exception(
-                "Failed to upsert vectors into collection '%s'.",
-                COLLECTION_NAME,
+                "Failed to upsert hybrid vectors."
             )
 
             raise
+
+
+# ==========================================================
+# Testing
+# ==========================================================
 
 if __name__ == "__main__":
 
@@ -298,18 +543,20 @@ if __name__ == "__main__":
     from rag.ingestion.parser import parse_documents
     from rag.ingestion.cleaner import clean_documents
     from rag.ingestion.metadata import enrich_metadata
-    from rag.chunking.recursive import chunk_documents
-    from rag.embedding.embedding_model import get_embedding_model
+    from rag.chunking.chunker import chunk_documents
+    from rag.embedding.embedding_model import (
+        get_embedding_model,
+    )
 
     pdf_path = "documents/Must KNOW.pdf"
 
-    logger.info("Starting Qdrant vector store integration test.")
+    logger.info(
+        "Starting hybrid Qdrant integration test."
+    )
 
-    # ------------------------------------------------------------
-    # Document Processing Pipeline
-    # ------------------------------------------------------------
-
-    start = time.perf_counter()
+    # ------------------------------------------------------
+    # Document processing
+    # ------------------------------------------------------
 
     docs = load_document(pdf_path)
 
@@ -321,39 +568,26 @@ if __name__ == "__main__":
 
     chunks = chunk_documents(docs)
 
-    preprocessing_time = time.perf_counter() - start
-
-    logger.info(
-            "Document preprocessing completed in %.3f sec.",
-            preprocessing_time,
-    )
-
     logger.info(
         "Generated %d chunk(s).",
         len(chunks),
     )
 
-    # ------------------------------------------------------------
-    # Embedding
-    # ------------------------------------------------------------
+    # ------------------------------------------------------
+    # Dense embeddings
+    # ------------------------------------------------------
 
     embedder = get_embedding_model()
 
-    start = time.perf_counter()
-
-    embedded_chunks = embedder.embed_documents(chunks)
-
-    embedding_time = time.perf_counter() - start
-
-    logger.info(
-        "Generated %d embedding(s) in %.3f sec.",
-        len(embedded_chunks),
-        embedding_time,
+    embedded_chunks = (
+        embedder.embed_documents(
+            chunks
+        )
     )
 
-    # ------------------------------------------------------------
-    # Vector Store
-    # ------------------------------------------------------------
+    # ------------------------------------------------------
+    # Vector store
+    # ------------------------------------------------------
 
     store = QdrantVectorStore()
 
@@ -366,59 +600,55 @@ if __name__ == "__main__":
         info,
     )
 
-    start = time.perf_counter()
+    # ------------------------------------------------------
+    # Upsert
+    # ------------------------------------------------------
 
-    store.upsert_documents(embedded_chunks)
-
-    upsert_time = time.perf_counter() - start
-
-    logger.info(
-        "Vector upsert completed in %.3f sec.",
-        upsert_time,
+    store.upsert_documents(
+        embedded_chunks
     )
 
-    # ------------------------------------------------------------
-    # Similarity Search
-    # ------------------------------------------------------------
+    # ------------------------------------------------------
+    # Hybrid search
+    # ------------------------------------------------------
 
     query = "What is a Zombie Process?"
 
-    logger.info(
-        "Running similarity search for query: %s",
-        query,
+    query_vector = (
+        embedder.embed_query(query)
     )
 
-    query_vector = embedder.embed_query(query)
+    results = store.search(
 
-    start = time.perf_counter()
+        query=query,
 
-    results = store.search(query_vector)
+        query_vector=query_vector,
 
-    search_time = time.perf_counter() - start
-
-    logger.info(
-        "Similarity search completed in %.3f sec.",
-        search_time,
+        limit=HYBRID_TOP_K,
     )
 
     logger.info(
-        "Retrieved %d document(s).",
+        "Retrieved %d hybrid result(s).",
         len(results),
     )
 
-    for index, document in enumerate(results, start=1):
+    for index, document in enumerate(
+        results,
+        start=1,
+    ):
+
         logger.info(
-            "Result %d Metadata: %s",
+            "Result %d metadata: %s",
             index,
             document.metadata,
         )
 
         logger.info(
-            "Result %d Content (first 300 chars): %s",
+            "Result %d content: %s",
             index,
             document.page_content[:300],
         )
 
     logger.info(
-            "Qdrant vector store integration test completed successfully."
-        )
+        "Hybrid Qdrant integration test completed."
+    )

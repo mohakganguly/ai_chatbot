@@ -1,12 +1,19 @@
 """
 parser.py
 
-Normalizes the output produced by different document loaders
-into a common format used throughout the RAG pipeline.
+Enterprise Document Parser.
+
+Responsibilities
+----------------
+1. Validate loader output.
+2. Normalize metadata.
+3. Preserve loader-generated metadata.
+4. Ensure downstream compatibility.
 """
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import List
 
@@ -19,133 +26,188 @@ logger = get_logger(__name__)
 
 class DocumentParser:
     """
-    Converts loader output into a standardized format.
+    Normalizes documents produced by every loader.
+
+    Since every loader already returns LangChain
+    Documents, this parser only validates and
+    standardizes metadata.
     """
 
-    REQUIRED_METADATA = {
-        "source": None,
-        "page": None,
-        "document_type": None,
+    DEFAULT_METADATA = {
+
+        "source": "unknown",
+
+        "page": 1,
+
+        "loader": "unknown",
+
+        "ocr": False,
+
     }
 
-    @classmethod
     def parse(
-        cls,
+        self,
         documents: List[Document],
     ) -> List[Document]:
 
-        logger.info("Parsing %d document(s).", len(documents))
+        logger.info(
+            "Parsing %d document(s).",
+            len(documents),
+        )
 
-        parsed_documents = []
+        start = time.perf_counter()
 
-        try:
-            for document in documents:
-                parsed_documents.append(
-                    cls._parse_single_document(document)
-                )
+        parsed_documents = [
 
-            logger.info(
-                "Successfully parsed %d document(s).",
-                len(parsed_documents),
-            )
+            self._parse_document(doc)
 
-            return parsed_documents
+            for doc in documents
 
-        except Exception:
-            logger.exception("Failed while parsing documents.")
-            raise
+        ]
 
-    @classmethod
-    def _parse_single_document(
-        cls,
+        logger.info(
+            "Parsing completed in %.3f sec.",
+            time.perf_counter() - start,
+        )
+
+        return parsed_documents
+
+    # -----------------------------------------------------
+    # Single Document
+    # -----------------------------------------------------
+
+    def _parse_document(
+        self,
         document: Document,
     ) -> Document:
 
-        metadata = cls._normalize_metadata(
-            document.metadata
-        )
+        metadata = self.DEFAULT_METADATA.copy()
 
-        return Document(
-            page_content=document.page_content,
-            metadata=metadata,
-        )
+        if isinstance(document.metadata, dict):
 
-    @classmethod
-    def _normalize_metadata(
-        cls,
-        metadata: dict,
-    ) -> dict:
+            metadata.update(document.metadata)
 
-        normalized = cls.REQUIRED_METADATA.copy()
+        # ---------------------------------------------
+        # Normalize source
+        # ---------------------------------------------
 
-        normalized.update(metadata)
-
-        source = normalized.get("source")
+        source = metadata.get("source")
 
         if source:
 
-            normalized["source"] = Path(source).name
+            metadata["source"] = str(Path(source))
 
-            normalized["document_type"] = (
+            metadata["filename"] = Path(source).name
+
+            metadata["document_type"] = (
+
                 Path(source)
+
                 .suffix
+
                 .replace(".", "")
+
                 .lower()
+
             )
 
-        if normalized.get("page") is None:
-            normalized["page"] = None
+        else:
 
-        return normalized
+            metadata["filename"] = "unknown"
+
+            metadata["document_type"] = "unknown"
+
+        # ---------------------------------------------
+        # Normalize page
+        # ---------------------------------------------
+
+        page = metadata.get("page")
+
+        if page is None:
+
+            metadata["page"] = 1
+
+        else:
+
+            try:
+
+                metadata["page"] = int(page)
+
+            except Exception:
+
+                metadata["page"] = 1
+
+        # ---------------------------------------------
+        # Normalize OCR flag
+        # ---------------------------------------------
+
+        metadata["ocr"] = bool(
+
+            metadata.get("ocr", False)
+
+        )
+
+        # ---------------------------------------------
+        # Normalize loader name
+        # ---------------------------------------------
+
+        metadata["loader"] = str(
+
+            metadata.get(
+
+                "loader",
+
+                "unknown",
+
+            )
+
+        )
+
+        return Document(
+
+            page_content=document.page_content,
+
+            metadata=metadata,
+
+        )
+
+
+# ==========================================================
+# Public API
+# ==========================================================
+
+_parser = DocumentParser()
 
 
 def parse_documents(
     documents: List[Document],
 ) -> List[Document]:
 
-    return DocumentParser.parse(documents)
+    return _parser.parse(
+        documents
+    )
 
 
-# ---------------------------------------------------------------------
+# ==========================================================
 # Testing
-# ---------------------------------------------------------------------
+# ==========================================================
 
 if __name__ == "__main__":
 
-    import time
-
     from rag.ingestion.loader import load_document
 
-    pdf_path = "documents/Must KNOW.pdf"
-
-    logger.info("Starting parser test.")
-
-    start = time.perf_counter()
-
-    docs = load_document(pdf_path)
-
-    loader_time = time.perf_counter() - start
-
-    logger.info(
-        "Loader completed in %.3f sec.",
-        loader_time,
+    docs = load_document(
+        "documents/sample.pdf"
     )
 
-    start = time.perf_counter()
-
-    parsed_docs = parse_documents(docs)
-
-    parser_time = time.perf_counter() - start
-
-    logger.info(
-        "Parser completed in %.3f sec.",
-        parser_time,
+    docs = parse_documents(
+        docs
     )
 
-    if parsed_docs:
-        logger.info(
-            "Sample metadata: %s",
-            parsed_docs[0].metadata,
-        )
+    print("=" * 80)
 
-    logger.info("Parser test completed successfully.")
+    print(docs[0].metadata)
+
+    print("=" * 80)
+
+    print(docs[0].page_content[:500])

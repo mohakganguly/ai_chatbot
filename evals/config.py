@@ -9,42 +9,61 @@ from __future__ import annotations
 from ragas.llms import LangchainLLMWrapper
 from ragas.embeddings import LangchainEmbeddingsWrapper
 
-from ragas.metrics import (
+from ragas.metrics.collections import (
     Faithfulness,
-    ResponseRelevancy,
+    AnswerRelevancy,
     ContextPrecision,
     ContextRecall,
 )
 
 from core.llm import (
     evaluation_llm,
-    evaluation_embeddings,
+    get_evaluation_embeddings,
 )
 
-# ----------------------------------------------------------
-# Wrapped models
-# ----------------------------------------------------------
+
+# ==========================================================
+# Wrapped Evaluation Models
+# ==========================================================
 
 RAGAS_LLM = LangchainLLMWrapper(
     evaluation_llm
 )
 
-RAGAS_EMBEDDINGS = LangchainEmbeddingsWrapper(
-    evaluation_embeddings
+
+evaluation_embeddings = (
+    get_evaluation_embeddings()
 )
 
-# ----------------------------------------------------------
-# Metrics
-# ----------------------------------------------------------
+
+RAGAS_EMBEDDINGS = (
+    LangchainEmbeddingsWrapper(
+        evaluation_embeddings
+    )
+)
+
+
+# ==========================================================
+# RAGAS Metrics
+# ==========================================================
 
 RAGAS_METRICS = [
 
-    Faithfulness(),
+    Faithfulness(
+        llm=RAGAS_LLM,
+    ),
 
-    ResponseRelevancy(),
+    AnswerRelevancy(
+        llm=RAGAS_LLM,
+        embeddings=RAGAS_EMBEDDINGS,
+    ),
 
-    ContextPrecision(),
+    ContextPrecision(
+        llm=RAGAS_LLM,
+    ),
 
-    ContextRecall(),
+    ContextRecall(
+        llm=RAGAS_LLM,
+    ),
 
 ]

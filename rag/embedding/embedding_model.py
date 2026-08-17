@@ -2,13 +2,21 @@
 embedding_model.py
 
 Central embedding service used throughout the RAG pipeline.
+
+Features:
+- Lazy model initialization
+- Batch document embedding
+- Query embedding
+- Configurable device
+- Configurable normalization
+- Centralized singleton instance
 """
 
 from __future__ import annotations
 
 import time
 from typing import List
-
+import threading
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -17,51 +25,115 @@ from config import (
     EMBEDDING_MODEL,
     NORMALIZE_EMBEDDINGS,
 )
+
 from rag.models.embedded_chunk import EmbeddedChunk
+
 from utils.logger import get_logger
+
 
 logger = get_logger(__name__)
 
 
+# ==========================================================
+# Embedding Model
+# ==========================================================
+
 class EmbeddingModel:
     """
-    Central embedding service used throughout the RAG pipeline.
+    Central embedding service used throughout
+    the RAG pipeline.
+
+    The actual HuggingFace model is initialized
+    lazily on the first embedding request.
     """
 
     def __init__(self):
 
+        self.embedding_model = None
+        self._model_lock = threading.Lock()
         logger.info(
-            "Initializing embedding model '%s' on device '%s'.",
-            EMBEDDING_MODEL,
-            EMBEDDING_DEVICE,
+            "Embedding service created. "
+            "Model will be initialized lazily."
         )
 
-        try:
+    # ======================================================
+    # Lazy Initialization
+    # ======================================================
 
-            self.embedding_model = HuggingFaceEmbeddings(
-                model_name=EMBEDDING_MODEL,
-                model_kwargs={
-                    "device": EMBEDDING_DEVICE,
-                },
-                encode_kwargs={
-                    "normalize_embeddings": NORMALIZE_EMBEDDINGS,
-                },
-            )
+    def _initialize_model(self):
 
+        if self.embedding_model is not None:
+            return
+
+        with self._model_lock:
+
+            if self.embedding_model is not None:
+                return self.embedding_model
             logger.info(
-                "Embedding model initialized successfully."
+                "Initializing embedding model '%s' "
+                "on device '%s'.",
+                EMBEDDING_MODEL,
+                EMBEDDING_DEVICE,
             )
 
-        except Exception:
-            logger.exception(
-                "Failed to initialize embedding model."
-            )
-            raise
+            start = time.perf_counter()
+
+            try:
+
+                self.embedding_model = HuggingFaceEmbeddings(
+
+                    model_name=EMBEDDING_MODEL,
+
+                    model_kwargs={
+                        "device": EMBEDDING_DEVICE,
+                    },
+
+                    encode_kwargs={
+                        "normalize_embeddings":
+                            NORMALIZE_EMBEDDINGS,
+                    },
+                )
+
+                elapsed = (
+                    time.perf_counter()
+                    - start
+                )
+
+                logger.info(
+                    "Embedding model initialized "
+                    "successfully in %.3f sec.",
+                    elapsed,
+                )
+
+            except Exception:
+
+                logger.exception(
+                    "Failed to initialize embedding model."
+                )
+
+                # Make sure a failed initialization
+                # does not leave a partially initialized
+                # model object behind.
+                self.embedding_model = None
+
+                raise
+
+    # ======================================================
+    # Document Embeddings
+    # ======================================================
 
     def embed_documents(
         self,
         documents: List[Document],
     ) -> List[EmbeddedChunk]:
+
+        if not documents:
+
+            logger.info(
+                "No documents supplied for embedding."
+            )
+
+            return []
 
         logger.info(
             "Generating embeddings for %d document(s).",
@@ -72,18 +144,24 @@ class EmbeddingModel:
 
         try:
 
+            # Initialize only when actually needed.
+            self._initialize_model()
+
             texts = [
                 document.page_content
                 for document in documents
             ]
 
-            vectors = self.embedding_model.embed_documents(
-                texts
-            )
+            # Batch embedding.
+            vectors=self.embedding_model.embed_documents(texts)
+            
 
             embedded_chunks = []
 
-            for document, vector in zip(documents, vectors):
+            for document, vector in zip(
+                documents,
+                vectors,
+            ):
 
                 embedded_chunks.append(
                     EmbeddedChunk(
@@ -92,10 +170,14 @@ class EmbeddingModel:
                     )
                 )
 
-            elapsed = time.perf_counter() - start
+            elapsed = (
+                time.perf_counter()
+                - start
+            )
 
             logger.info(
-                "Generated %d embedding(s) in %.3f sec.",
+                "Generated %d embedding(s) "
+                "in %.3f sec.",
                 len(embedded_chunks),
                 elapsed,
             )
@@ -104,21 +186,36 @@ class EmbeddingModel:
 
                 logger.info(
                     "Embedding dimension: %d",
-                    len(embedded_chunks[0].vector),
+                    len(
+                        embedded_chunks[0].vector
+                    ),
                 )
 
             return embedded_chunks
 
         except Exception:
+
             logger.exception(
-                "Failed while generating document embeddings."
+                "Failed while generating "
+                "document embeddings."
             )
+
             raise
+
+    # ======================================================
+    # Query Embedding
+    # ======================================================
 
     def embed_query(
         self,
         query: str,
     ) -> List[float]:
+
+        if not query or not query.strip():
+
+            raise ValueError(
+                "Query cannot be empty."
+            )
 
         logger.info(
             "Generating query embedding."
@@ -128,57 +225,128 @@ class EmbeddingModel:
 
         try:
 
-            vector = self.embedding_model.embed_query(
-                query
+            # Initialize only when actually needed.
+            self._initialize_model()
+
+            vector = (
+                self.embedding_model.embed_query(
+                    query
+                )
             )
 
-            elapsed = time.perf_counter() - start
+            elapsed = (
+                time.perf_counter()
+                - start
+            )
 
             logger.info(
-                "Query embedding generated in %.3f sec.",
+                "Query embedding generated "
+                "in %.3f sec.",
                 elapsed,
             )
 
             return vector
 
         except Exception:
+
             logger.exception(
-                "Failed while generating query embedding."
+                "Failed while generating "
+                "query embedding."
             )
+
             raise
 
 
-_embedder = EmbeddingModel()
+# ==========================================================
+# Singleton / Lazy Service
+# ==========================================================
+
+_embedder: EmbeddingModel | None = None
+_embedder_lock = threading.Lock()
 
 
 def get_embedding_model() -> EmbeddingModel:
 
+    global _embedder
+
+    if _embedder is not None:
+        return _embedder
+
+    with _embedder_lock:
+
+        if _embedder is None:
+
+            _embedder = EmbeddingModel()
+
     return _embedder
 
 
-# ---------------------------------------------------------------------
+# ==========================================================
 # Testing
-# ---------------------------------------------------------------------
+# ==========================================================
 
 if __name__ == "__main__":
 
+    from langchain_core.documents import Document
+
     docs = [
-        Document(page_content="Linux is an operating system."),
-        Document(page_content="Messi won the FIFA World Cup."),
+
+        Document(
+            page_content=(
+                "Linux is an operating system."
+            )
+        ),
+
+        Document(
+            page_content=(
+                "Messi won the FIFA World Cup."
+            )
+        ),
     ]
 
-    logger.info("Starting embedding model test.")
+    logger.info(
+        "Starting embedding model test."
+    )
 
-    embedder = get_embedding_model()
+    # ------------------------------------------------------
+    # Service creation should NOT load the model yet.
+    # ------------------------------------------------------
 
     start = time.perf_counter()
 
-    embedded_chunks = embedder.embed_documents(docs)
+    embedder = get_embedding_model()
 
-    elapsed = time.perf_counter() - start
+    service_creation_time = (
+        time.perf_counter()
+        - start
+    )
 
     logger.info(
-        "Embedding test completed in %.3f sec.",
+        "Embedding service created in %.3f sec.",
+        service_creation_time,
+    )
+
+    # ------------------------------------------------------
+    # First embedding call
+    # This is where lazy model initialization happens.
+    # ------------------------------------------------------
+
+    start = time.perf_counter()
+
+    embedded_chunks = (
+        embedder.embed_documents(
+            docs
+        )
+    )
+
+    elapsed = (
+        time.perf_counter()
+        - start
+    )
+
+    logger.info(
+        "First embedding call completed "
+        "in %.3f sec.",
         elapsed,
     )
 
@@ -191,7 +359,9 @@ if __name__ == "__main__":
 
         logger.info(
             "Embedding dimension: %d",
-            len(embedded_chunks[0].vector),
+            len(
+                embedded_chunks[0].vector
+            ),
         )
 
         logger.info(
@@ -199,4 +369,33 @@ if __name__ == "__main__":
             embedded_chunks[0].vector[:10],
         )
 
-    logger.info("Embedding model test completed successfully.")
+    # ------------------------------------------------------
+    # Second call
+    # Model should already be loaded.
+    # ------------------------------------------------------
+
+    start = time.perf_counter()
+
+    query_vector = embedder.embed_query(
+        "What is an operating system?"
+    )
+
+    elapsed = (
+        time.perf_counter()
+        - start
+    )
+
+    logger.info(
+        "Query embedding completed "
+        "in %.3f sec.",
+        elapsed,
+    )
+
+    logger.info(
+        "Query embedding dimension: %d",
+        len(query_vector),
+    )
+
+    logger.info(
+        "Embedding model test completed successfully."
+    )

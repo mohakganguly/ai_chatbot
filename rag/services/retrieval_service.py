@@ -12,12 +12,12 @@ from __future__ import annotations
 from langchain_core.messages import BaseMessage
 
 from graph.history import build_history
-
+from functools import lru_cache
 from rag.retrieval.retriever import Retriever
 from rag.retrieval.query_rewriter import QueryRewriter
 from rag.retrieval.rewrite_decider import RewriteDecider
-from rag.retrieval.reranker import Reranker
-
+# from rag.retrieval.reranker import Reranker
+from rag.retrieval.reranker import get_reranker
 from rag.filtering.context_filter import ContextFilter
 from rag.citations.citation_builder import CitationBuilder
 
@@ -45,7 +45,7 @@ class RetrievalService:
 
         self.rewrite_decider = RewriteDecider()
 
-        self.reranker = Reranker()
+        self.reranker = get_reranker()
 
         self.context_filter = ContextFilter()
 
@@ -132,6 +132,7 @@ class RetrievalService:
                 documents = self.retriever.retrieve(
                     query=retrieval_query,
                     thread_id=thread_id,
+                    top_k=8,
                 )
 
 
@@ -146,10 +147,13 @@ class RetrievalService:
                     query=retrieval_query,
 
                     documents=documents,
+
+                    top_k=5,
                 )
 
                 logger.info(
-                    "Documents reranked"
+                    "Documents reranked. Final candidates : %d",
+                    len(documents),
                 )
 
             # ======================================================
@@ -200,3 +204,15 @@ class RetrievalService:
                     citations=citations,
 
                 )
+
+@lru_cache(maxsize=1)
+def get_retrieval_service() -> RetrievalService:
+    """
+    Return the single shared RetrievalService instance.
+    """
+
+    logger.info(
+        "Creating shared RetrievalService instance."
+    )
+
+    return RetrievalService()       

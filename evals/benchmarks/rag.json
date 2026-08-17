@@ -1,82 +1,82 @@
 [
-  {
-    "question": "What is Retrieval-Augmented Generation (RAG)?",
-    "ground_truth": "RAG combines information retrieval with language generation by retrieving relevant documents before generating a response."
-  },
-  {
-    "question": "Explain the purpose of embeddings in a RAG system.",
-    "ground_truth": "Embeddings convert text into dense vectors that enable semantic similarity search."
-  },
-  {
-    "question": "What is vector similarity search?",
-    "ground_truth": "Vector similarity search retrieves documents whose embeddings are closest to the query embedding."
-  },
-  {
-    "question": "Why is reranking used after retrieval?",
-    "ground_truth": "Reranking improves relevance by reordering retrieved documents using a stronger relevance model."
-  },
-  {
-    "question": "What is context filtering in RAG?",
-    "ground_truth": "Context filtering removes irrelevant retrieved documents before answer generation."
-  },
-  {
-    "question": "Explain chunking in document retrieval.",
-    "ground_truth": "Chunking splits documents into smaller pieces to improve retrieval accuracy."
-  },
-  {
-    "question": "What is recursive text splitting?",
-    "ground_truth": "Recursive text splitting breaks text hierarchically while preserving semantic boundaries."
-  },
-  {
-    "question": "Why are citations important in enterprise RAG?",
-    "ground_truth": "Citations allow users to verify the source of generated information."
-  },
-  {
-    "question": "What are hallucinations in RAG systems?",
-    "ground_truth": "Hallucinations occur when the model generates unsupported or incorrect information."
-  },
-  {
-    "question": "Explain dense retrieval.",
-    "ground_truth": "Dense retrieval uses embedding similarity instead of keyword matching."
-  },
-  {
-    "question": "Explain sparse retrieval.",
-    "ground_truth": "Sparse retrieval uses lexical methods such as BM25."
-  },
-  {
-    "question": "Difference between BM25 and embeddings.",
-    "ground_truth": "BM25 is keyword based while embeddings capture semantic similarity."
-  },
-  {
-    "question": "What is Graph RAG?",
-    "ground_truth": "Graph RAG augments retrieval using graph relationships between entities and documents."
-  },
-  {
-    "question": "What is metadata filtering?",
-    "ground_truth": "Metadata filtering restricts retrieval using document metadata such as source or author."
-  },
-  {
-    "question": "Why normalize embeddings?",
-    "ground_truth": "Normalization improves cosine similarity calculations."
-  },
-  {
-    "question": "What is semantic search?",
-    "ground_truth": "Semantic search retrieves documents based on meaning rather than exact keywords."
-  },
-  {
-    "question": "What is Top-K retrieval?",
-    "ground_truth": "Top-K retrieval returns the K most relevant retrieved documents."
-  },
-  {
-    "question": "Why use Qdrant?",
-    "ground_truth": "Qdrant is a vector database optimized for similarity search."
-  },
-  {
-    "question": "Explain hybrid search.",
-    "ground_truth": "Hybrid search combines lexical and vector retrieval."
-  },
-  {
-    "question": "Why is query rewriting useful?",
-    "ground_truth": "Query rewriting reformulates ambiguous user queries to improve retrieval."
-  }
+    {
+        "question": "What programming languages does Mohak Ganguly know?",
+        "ground_truth": "Mohak Ganguly knows C++, Python, and SQL."
+    },
+    {
+        "question": "What frameworks and technologies does Mohak Ganguly have experience with?",
+        "ground_truth": "He has experience with FastAPI, Streamlit, LangChain, LangGraph, Model Context Protocol (MCP), Retrieval-Augmented Generation (RAG), and REST APIs."
+    },
+    {
+        "question": "What databases does Mohak Ganguly have experience with?",
+        "ground_truth": "He has experience with PostgreSQL, SQLite, and Qdrant as a vector database."
+    },
+    {
+        "question": "What is the Enterprise AI Assistant project?",
+        "ground_truth": "It is an AI assistant built with LangGraph and FastAPI that combines Retrieval-Augmented Generation, agentic workflows, persistent memory, and tool calling for enterprise knowledge retrieval."
+    },
+    {
+        "question": "How does the Enterprise AI Assistant handle retrieval?",
+        "ground_truth": "It uses semantic search, query rewriting, reranking, and context filtering as part of its RAG pipeline."
+    },
+    {
+        "question": "How is retrieval controlled in the Enterprise AI Assistant?",
+        "ground_truth": "The LangGraph state machine uses conditional routing so the agent can skip retrieval on purely conversational turns."
+    },
+    {
+        "question": "How was the Enterprise AI Assistant evaluated?",
+        "ground_truth": "The RAG pipeline was evaluated with RAGAS on a held-out query set and achieved a faithfulness score of 0.72."
+    },
+    {
+        "question": "What observability tool was used for the Enterprise AI Assistant?",
+        "ground_truth": "LangSmith was used for run-level tracing to enable step-by-step debugging of retrieval and generation failures."
+    },
+    {
+        "question": "What is ForgeMCP?",
+        "ground_truth": "ForgeMCP is an AI Workspace Runtime built with Python, FastMCP, Pydantic, Docker, and SQLite that provides a plugin-based MCP server for AI agents to interact with local filesystem, terminal, and workspace resources."
+    },
+    {
+        "question": "What security mechanism does ForgeMCP use for its plugins?",
+        "ground_truth": "ForgeMCP plugins enforce permission scoping so agents cannot access resources outside their granted workspace."
+    },
+    {
+        "question": "How does ForgeMCP support adding new tools?",
+        "ground_truth": "It uses a plugin architecture with dynamic registration, dependency injection, and Pydantic-based input/output validation, allowing new tools to be added through a single plugin interface."
+    },
+    {
+        "question": "How does ForgeMCP persist state?",
+        "ground_truth": "ForgeMCP uses SQLite to persist session and task state across restarts so in-progress background tasks survive a server reload."
+    },
+    {
+        "question": "What is the TransitOps AI SQL Assistant?",
+        "ground_truth": "It is a natural-language-to-SQL assistant for querying transport fleet data such as vehicles, drivers, routes, and maintenance conversationally."
+    },
+    {
+        "question": "How does the TransitOps AI SQL Assistant work?",
+        "ground_truth": "It uses LangChain to translate natural language into SQL, executes the SQL against SQLite, and returns the results as natural-language summaries."
+    },
+    {
+        "question": "What makes the TransitOps backend modular?",
+        "ground_truth": "The FastAPI backend uses pluggable database connectors, allowing the assistant to connect to a different schema without rewriting the query pipeline."
+    },
+    {
+        "question": "What Data Structures and Algorithms achievement does Mohak Ganguly have?",
+        "ground_truth": "He has solved more than 300 Data Structures and Algorithms problems across LeetCode and GeeksforGeeks."
+    },
+    {
+        "question": "What hackathon achievement does Mohak Ganguly have?",
+        "ground_truth": "He was a finalist in the Odoo Tech Hackathon, which had more than 5000 teams competing."
+    },
+    {
+        "question": "What is Mohak Ganguly's educational background?",
+        "ground_truth": "He is pursuing a Bachelor of Technology in Computer Science Engineering at the International Institute of Information Technology, Bhubaneswar, with a CGPA of 7.81 out of 10."
+    },
+    {
+        "question": "What libraries does Mohak Ganguly have experience with?",
+        "ground_truth": "He has experience with PyTorch, Scikit-learn, Hugging Face Transformers, Pandas, NumPy, Pydantic, and RAGAS."
+    },
+    {
+        "question": "What developer tools does Mohak Ganguly use?",
+        "ground_truth": "He has experience with Git, GitHub, Docker, LangSmith, MLflow, Grafana, and Postman."
+    }
 ]
