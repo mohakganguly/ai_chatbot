@@ -48,6 +48,7 @@ class ChatState(TypedDict):
 
 
 from agents.schemas import ObservationDecision
+from typing import NotRequired
 
 class AgentState(TypedDict):
     """
@@ -84,6 +85,9 @@ class AgentState(TypedDict):
     # History of tool results
     tool_results: list[ToolResult]
 
+    tool_guardrail_status: NotRequired[str]
+    tool_guardrail_reason: NotRequired[str | None]
+
     observation: ObservationDecision | None
 
     # Number of reasoning iterations
@@ -100,6 +104,20 @@ class AgentState(TypedDict):
 
     # Error message (if any)
     error: str | None
+
+
+    # ==========================================================
+    # Guardrails
+    # ==========================================================
+
+    # Result of input safety validation
+    guardrail_status: Literal[
+        "SAFE",
+        "BLOCKED",
+    ] | None
+
+    # Reason the request was blocked
+    guardrail_reason: str | None
 
     # Extra metadata for future use
     metadata: dict[str, Any]

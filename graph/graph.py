@@ -20,9 +20,11 @@ from graph.routes import (
 )
 
 from graph.nodes import (
+    input_guardrail_node,
     router_node,
     general_chat_node,
     planner_node,
+    tool_guardrail_node,
     executor_node,
     observation_node,
     answer_node,
@@ -38,6 +40,23 @@ logger = get_logger(__name__)
 
 logger.info("Building Enterprise AI Assistant Workflow...")
 
+def route_after_planner(state: AgentState):
+
+    tool_call = state.get("tool_call")
+
+    if tool_call is None:
+        return "answer"
+
+    tool_name = getattr(
+        tool_call,
+        "tool",
+        None,
+    )
+
+    if tool_name is None or tool_name.lower() == "none":
+        return "answer"
+
+    return "executor"
 # ==========================================================
 # Graph Builder
 # ==========================================================
@@ -47,6 +66,11 @@ builder = StateGraph(AgentState)
 # ==========================================================
 # Nodes
 # ==========================================================
+
+builder.add_node(
+    "input_guardrail",
+    input_guardrail_node,
+)
 
 builder.add_node(
     "router",
@@ -62,7 +86,10 @@ builder.add_node(
     "planner",
     planner_node,
 )
-
+builder.add_node(
+    "tool_guardrail",
+    tool_guardrail_node,
+)
 builder.add_node(
     "executor",
     executor_node,
@@ -84,9 +111,21 @@ builder.add_node(
 
 builder.add_edge(
     START,
-    "router",
+    "input_guardrail",
 )
 
+# ==========================================================
+# Input Guardrail
+# ==========================================================
+
+builder.add_conditional_edges(
+    "input_guardrail",
+    lambda state: state["guardrail_status"],
+    {
+        "SAFE": "router",
+        "BLOCKED": END,
+    },
+)
 # ==========================================================
 # Router
 # ==========================================================
@@ -109,11 +148,26 @@ builder.add_edge(
 # Agent Loop
 # ==========================================================
 
-builder.add_edge(
+# builder.add_edge(
+#     "planner",
+#     "executor",
+# )
+builder.add_conditional_edges(
     "planner",
-    "executor",
+    route_after_planner,
+    {
+        "executor": "tool_guardrail",
+        "answer": "answer",
+    },
 )
-
+builder.add_conditional_edges(
+    "tool_guardrail",
+    lambda state: state["tool_guardrail_status"],
+    {
+        "SAFE": "executor",
+        "BLOCKED": "observation",
+    },
+)
 builder.add_edge(
     "executor",
     "observation",

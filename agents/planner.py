@@ -1,6 +1,4 @@
 """
-planner.py
-
 Planning agent responsible for selecting
 the next tool.
 """
@@ -13,7 +11,6 @@ from langchain_core.messages import (
 )
 
 from graph.state import AgentState
-
 from agents.schemas import ToolCall
 
 from agents.prompts import (
@@ -23,11 +20,11 @@ from agents.prompts import (
 )
 
 from agents.registry import registry
-
 from core.llm import planner_llm
 
 from utils.logger import get_logger
 from observability.tracing import trace_node
+
 
 logger = get_logger(__name__)
 
@@ -40,13 +37,14 @@ class Planner:
     def __init__(self):
 
         self.llm = planner_llm.with_structured_output(
-            ToolCall
+            ToolCall,
+            method="json_schema",
         )
 
     def plan(
         self,
         state: AgentState,
-    ) -> ToolCall:
+    ) -> ToolCall|None:
 
         with trace_node(
             "Planner",
@@ -81,9 +79,12 @@ class Planner:
                     HumanMessage(
                         content=planner_context,
                     ),
+
                 ]
 
-            logger.info("Running Planner")
+            logger.info(
+                "Running Planner"
+            )
 
             try:
 
@@ -91,7 +92,9 @@ class Planner:
                 # Planner LLM
                 # --------------------------------------------------
 
-                with trace_node("Planner - LLM"):
+                with trace_node(
+                    "Planner - LLM"
+                ):
 
                     tool_call = self.llm.invoke(
                         messages
@@ -101,17 +104,26 @@ class Planner:
                 # Planner Validation
                 # --------------------------------------------------
 
-                with trace_node("Planner - Validation"):
+                with trace_node(
+                    "Planner - Validation"
+                ):
 
                     if state["tool_history"]:
 
                         last_tool = state["tool_history"][-1]
 
-                        if last_tool.tool == tool_call.tool:
+                        if (
+                            last_tool.tool
+                            == tool_call.tool
+                        ):
 
                             if state["tool_result"]:
 
-                                state["observation"].continue_execution = False
+                                if state["observation"]:
+
+                                    state[
+                                        "observation"
+                                    ].continue_execution = False
 
                 logger.info(
                     "Planner selected tool: %s",
@@ -122,6 +134,9 @@ class Planner:
 
             except Exception as e:
 
-                logger.exception("Planner failed")
+                logger.exception(
+                    "Planner failed to generate structured output: %s",
+                    str(e),
+                )
 
-                raise
+                return None

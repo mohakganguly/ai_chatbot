@@ -577,62 +577,216 @@ if user_input:
 
     with st.chat_message("assistant"):
         chatbot = get_chatbot()
+        # def response_stream():
+
+        #     streamed_text = ""
+
+        #     for chunk, metadata in chatbot.stream(
+
+        #             {
+        #                 "messages": [HumanMessage(content=user_input)],
+        #                 "query": user_input,
+        #                 "route": "",
+        #                 "tool_call": None,
+        #                 "tool_result": None,
+        #                 "final_answer": None,
+        #                 "tool_history": [],
+        #                 "tool_results": [],
+        #                 "observation": None,
+        #                 "iteration": 0,
+        #                 "status": "PLANNING",
+        #                 "error": None,
+        #                 "metadata": {
+        #                     "thread_id": st.session_state["thread_id"],
+        #                      "documents": [
+        #                             doc.filename
+        #                             for doc in st.session_state["attached_documents"]
+        #                     ],
+
+        #                 },
+        #             },
+
+        #             config=config,
+
+        #             stream_mode="messages",
+
+        #     ):
+
+        #         # Stream only the final answer
+        #         node=metadata.get("langgraph_node")
+        #         if(node) not in ("general","answer","input_guardrail"):
+        #             continue
+
+        #         if not isinstance(chunk, AIMessageChunk):
+        #             continue
+
+        #         text = chunk.content or ""
+
+        #         if not text:
+        #             continue
+
+        #         if text.startswith(streamed_text):
+        #             new_text = text[len(streamed_text):]
+        #         else:
+        #             new_text = text
+
+        #         streamed_text += new_text
+
+        #         yield new_text
+
         def response_stream():
 
             streamed_text = ""
 
-            for chunk, metadata in chatbot.stream(
+            for mode, data in chatbot.stream(
 
-                    {
-                        "messages": [HumanMessage(content=user_input)],
-                        "query": user_input,
-                        "route": "",
-                        "tool_call": None,
-                        "tool_result": None,
-                        "final_answer": None,
-                        "tool_history": [],
-                        "tool_results": [],
-                        "observation": None,
-                        "iteration": 0,
-                        "status": "PLANNING",
-                        "error": None,
-                        "metadata": {
-                            "thread_id": st.session_state["thread_id"],
-                             "documents": [
-                                    doc.filename
-                                    for doc in st.session_state["attached_documents"]
-                            ],
+                {
+                    "messages": [
+                        HumanMessage(content=user_input)
+                    ],
 
-                        },
+                    "query": user_input,
+
+                    "route": "",
+
+                    "tool_call": None,
+
+                    "tool_result": None,
+
+                    "final_answer": None,
+
+                    "tool_history": [],
+
+                    "tool_results": [],
+
+                    "observation": None,
+
+                    "iteration": 0,
+
+                    "status": "PLANNING",
+
+                    "error": None,
+
+                    "metadata": {
+
+                        "thread_id": st.session_state["thread_id"],
+
+                        "documents": [
+
+                            doc.filename
+                            for doc in st.session_state[
+                                "attached_documents"
+                            ]
+
+                        ],
+
                     },
 
-                    config=config,
+                },
 
-                    stream_mode="messages",
+                config=config,
+
+                stream_mode=["messages", "updates"],
 
             ):
 
-                # Stream only the final answer
-                node=metadata.get("langgraph_node")
-                if(node) not in ("general","answer"):
-                    continue
+                # ==========================================
+                # NORMAL LLM TOKEN STREAMING
+                # ==========================================
 
-                if not isinstance(chunk, AIMessageChunk):
-                    continue
+                if mode == "messages":
 
-                text = chunk.content or ""
+                    chunk, metadata = data
 
-                if not text:
-                    continue
+                    node = metadata.get("langgraph_node")
 
-                if text.startswith(streamed_text):
-                    new_text = text[len(streamed_text):]
-                else:
-                    new_text = text
+                    # Only show user-facing responses
+                    if node not in ("general", "answer"):
+                        continue
 
-                streamed_text += new_text
+                    if not isinstance(
+                        chunk,
+                        AIMessageChunk,
+                    ):
+                        continue
 
-                yield new_text
+                    text = chunk.content or ""
+
+                    if not text:
+                        continue
+
+                    yield text
+
+                    streamed_text += text
+
+
+                # ==========================================
+                # GUARDRAIL BLOCKED RESPONSE
+                # ==========================================
+
+                elif mode == "updates":
+
+                #     if "input_guardrail" not in data:
+                #         continue
+
+                #     update = data["input_guardrail"]
+
+                #     if (
+                #         update.get("guardrail_status")
+                #         == "BLOCKED"
+                #     ):
+
+                #         final_answer = update.get(
+                #             "final_answer",
+                #             "I can't process this request.",
+                #         )
+
+                #         if final_answer:
+                #             yield final_answer
+
+                #         return
+                    # Input guardrail response
+                    if "input_guardrail" in data:
+
+                        update = data["input_guardrail"]
+
+                        if (
+                            update.get("guardrail_status")
+                            == "BLOCKED"
+                        ):
+
+                            final_answer = update.get(
+                                "final_answer",
+                                "I can't process this request.",
+                            )
+
+                            if final_answer:
+                                streamed_text += final_answer
+                                yield final_answer
+
+                            return
+
+                    # Planner structured-output failure
+                    if "planner" in data:
+
+                        update = data["planner"]
+
+                        if (
+                            update.get("status")
+                            == "PLANNER_BLOCKED"
+                        ):
+
+                            final_answer = update.get(
+                                "final_answer",
+                                "I can't help with that request.",
+                            )
+
+                            if final_answer:
+                                streamed_text += final_answer
+                                yield final_answer
+
+                            return
+                  
 
 
         ai_message = st.write_stream(response_stream())

@@ -263,7 +263,7 @@ def build_tool_descriptions(
 # Helpers
 # ==========================================================
 
-def build_tool_descriptions(
+def _descriptions(
     tools: list[dict],
 ) -> str:
     """

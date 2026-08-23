@@ -13,9 +13,9 @@ load_dotenv()
 # LLM Configuration
 #############################################
 
-CHAT_MODEL = "llama-3.1-8b-instant"
+CHAT_MODEL = "openai/gpt-oss-20b"
 CHAT_TEMPERATURE=0.2
-
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GOOGLE_API_KEY=os.getenv("GOOGLE_API_KEY")
@@ -103,3 +103,4 @@ USE_MARKDOWN_EXTRACTION = False
 MIN_TEXT_LENGTH = 200
 
 OCR_THRESHOLD = 20
+

@@ -241,33 +241,39 @@ from agents.prompts import (
     ANSWER_SYSTEM_PROMPT,
     build_answer_context,
 )
+from guardrails.input_guard import get_input_guard
 
 
 planner = Planner()
 executor = Executor()
 observer = Observation()
 
+input_guard = get_input_guard()
 
-def planner_node(
-    state: AgentState,
-):
-    with trace_node(
-            "Planner",
-            iteration=state["iteration"],
-    ):
-        tool_call = planner.plan(state)
+def planner_node(state: AgentState):
+
+    tool_call = planner.plan(state)
+
+    # Planner/provider refused or failed
+    if tool_call is None:
+
+        logger.warning(
+            "Planner returned no tool call. "
+            "Ending agent execution safely."
+        )
 
         return {
-
-            "tool_call": tool_call,
-
-            "tool_history": state["tool_history"][-3:] + [
-                tool_call
-            ],
-
-            "status": "PLANNING",
+            "tool_call": None,
+            "status": "PLANNER_BLOCKED",
+            "final_answer": (
+                "I can't help with that request."
+            ),
         }
 
+    return {
+        "tool_call": tool_call,
+        "status": "PLANNING",
+    }
 
 def executor_node(
     state: AgentState,
@@ -310,6 +316,10 @@ def observation_node(
 def answer_node(
     state: AgentState,
 ):
+    if state.get("status") == "PLANNER_BLOCKED":
+        return {
+            "final_answer": state["final_answer"],
+        }
     with trace_node("Answer"):
         context = build_answer_context(
 
@@ -348,4 +358,175 @@ def answer_node(
             ],
 
             "status": "FINISHED",
+        }
+
+
+
+# ==========================================================
+# Input Guardrail Node
+# ==========================================================
+from guardrails.responses import get_guardrail_response
+def input_guardrail_node(
+    state: AgentState,
+):
+    """
+    Validate user input before it enters
+    the main LangGraph workflow.
+    """
+
+    with trace_node("Input Guardrail"):
+
+        query = state["messages"][-1].content
+        logger.info("INPUT GUARDRAIL RECEIVED QUERY: %s", query)
+        result = input_guard.validate(
+            query
+        )
+        logger.info(
+            "Guardrail result | allowed=%s | reason=%s",
+            result.allowed,
+            result.reason,
+        )
+        if not result.allowed:
+            response=get_guardrail_response(result.category)
+            logger.warning(
+                "Input blocked by guardrail: %s",
+                result.reason,
+            )
+
+            return {
+                "query": query,
+                "guardrail_status": "BLOCKED",
+                "guardrail_reason": result.reason,
+                "final_answer": response,
+                "messages": [
+                    AIMessage(
+                        content=response
+                    )
+                ],
+                "status": "BLOCKED",
+            }
+
+        logger.info(
+            "Input passed guardrail validation"
+        )
+
+        return {
+            "query": query,
+            "guardrail_status": "SAFE",
+            "guardrail_reason": None,
+        }
+
+
+
+from guardrails.tool_guard import get_tool_guard
+tool_guard = get_tool_guard()
+def tool_guardrail_node(
+    state: AgentState,
+):
+    """
+    Validate the selected tool and its arguments
+    before the executor runs.
+    """
+
+    with trace_node("Tool Guardrail"):
+
+        tool_call = state.get("tool_call")
+
+        # --------------------------------------------------
+        # No tool selected
+        # --------------------------------------------------
+
+        if tool_call is None:
+
+            logger.info(
+                "No tool selected. Skipping tool guardrail."
+            )
+
+            return {
+                "tool_guardrail_status": "SAFE",
+                "tool_guardrail_reason": None,
+            }
+
+        # --------------------------------------------------
+        # Get arguments safely
+        # --------------------------------------------------
+
+        # Supports different ToolCall schemas:
+        # arguments / args / parameters
+
+        arguments = getattr(
+            tool_call,
+            "arguments",
+            None,
+        )
+
+        if arguments is None:
+
+            arguments = getattr(
+                tool_call,
+                "args",
+                None,
+            )
+
+        if arguments is None:
+
+            arguments = getattr(
+                tool_call,
+                "parameters",
+                None,
+            )
+
+        # --------------------------------------------------
+        # Validate
+        # --------------------------------------------------
+
+        result = tool_guard.validate(
+            tool_name=tool_call.tool,
+            arguments=arguments,
+        )
+
+        # --------------------------------------------------
+        # Blocked
+        # --------------------------------------------------
+
+        if not result.allowed:
+
+            logger.warning(
+                "Tool call blocked | "
+                "tool=%s | category=%s | reason=%s",
+                tool_call.tool,
+                result.category,
+                result.reason,
+            )
+
+            return {
+                "tool_guardrail_status": "BLOCKED",
+
+                "tool_guardrail_reason": (
+                    result.reason
+                ),
+
+                "tool_result": {
+                    "success": False,
+                    "blocked": True,
+                    "tool": tool_call.tool,
+                    "category": result.category,
+                    "error": result.reason,
+                },
+
+                "status": "TOOL_BLOCKED",
+            }
+
+        # --------------------------------------------------
+        # Safe
+        # --------------------------------------------------
+
+        logger.info(
+            "Tool call passed guardrail | tool=%s",
+            tool_call.tool,
+        )
+
+        return {
+            "tool_guardrail_status": "SAFE",
+            "tool_guardrail_reason": None,
         }
