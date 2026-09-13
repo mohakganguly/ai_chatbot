@@ -1,0 +1,52 @@
+[
+    {
+        "id": "retrieval_001",
+        "input": "How does the document define machine learning and its primary focus?",
+        "expected_output": "Machine learning is defined as a critical subfield of artificial intelligence that focuses on the development of algorithms and statistical models, enabling computer systems to perform specific tasks effectively without using explicit instructions."
+    },
+    {
+        "id": "retrieval_002",
+        "input": "Who coined the term 'machine learning' and in what year?",
+        "expected_output": "Arthur Samuel coined the term 'machine learning' in 1959, defining it as a field of study that gives computers the ability to learn without being explicitly programmed."
+    },
+    {
+        "id": "retrieval_003",
+        "input": "What are the two main types of problems in supervised learning, and how do they differ?",
+        "expected_output": "Supervised learning is subdivided into classification, which involves predicting a discrete categorical label, and regression, which deals with predicting a continuous numerical value."
+    },
+    {
+        "id": "retrieval_004",
+        "input": "How does a reinforcement learning system operate, and what is its ultimate goal?",
+        "expected_output": "A reinforcement learning system operates as a continuous loop of state, action, and reward. The ultimate goal is to discover an optimal policy—a mapping from states to actions—that yields the highest possible long-term reward."
+    },
+    {
+        "id": "retrieval_005",
+        "input": "What is the core objective of a Support Vector Machine (SVM) and how does it define the 'optimal' hyperplane?",
+        "expected_output": "The core objective of an SVM is to find the optimal hyperplane that separates data points of different classes in a high-dimensional space. The 'optimal' hyperplane is defined as the one that maximizes the margin, which is the distance between the hyperplane and the nearest data points from each class, known as 'support vectors'."
+    },
+    {
+        "id": "retrieval_006",
+        "input": "What are the potential negative consequences of feeding a machine learning model irrelevant or highly correlated features?",
+        "expected_output": "Feeding a model irrelevant or highly correlated features can lead to overfitting, increased computational costs, and reduced interpretability."
+    },
+    {
+        "id": "retrieval_007",
+        "input": "What is 'concept drift' in the context of deployed machine learning models, and why is it problematic?",
+        "expected_output": "Concept drift is the phenomenon where the statistical properties of the target variable change over time, which requires models to undergo periodic retraining to maintain their accuracy."
+    },
+    {
+        "id": "retrieval_008",
+        "input": "According to the document, what two features constitute the 'architectural elegance' of Convolutional Neural Networks (CNNs)?",
+        "expected_output": "The architectural elegance of CNNs lies in their parameter sharing and spatial invariance."
+    },
+    {
+        "id": "retrieval_009",
+        "input": "What mechanism did the Transformer architecture introduce to replace recurrence, and how does it function?",
+        "expected_output": "Transformers rely on a mechanism called 'Self-Attention,' which allows the model to weigh the importance of different words in a sentence relative to one another, regardless of their distance from each other."
+    },
+    {
+        "id": "retrieval_010",
+        "input": "What is the consequence of training a machine learning model on historical data that contains societal prejudices?",
+        "expected_output": "If trained on data containing societal prejudices or systemic inequalities, the model will inevitably learn, perpetuate, and often amplify those biases at scale."
+    }
+]

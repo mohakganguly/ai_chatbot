@@ -50,7 +50,7 @@ class Retriever:
     RRF fusion
     """
 
-    def __init__(self):
+    def __init__(self,collection_name:str|None=None):
 
         logger.info(
             "Initializing Hybrid Retriever"
@@ -58,7 +58,7 @@ class Retriever:
 
         self.embedder = get_embedding_model()
 
-        self.vector_store = QdrantVectorStore()
+        self.vector_store = QdrantVectorStore(collection_name=collection_name)
 
         logger.info(
             "Hybrid Retriever initialized successfully."

@@ -69,7 +69,7 @@ HYBRID_TOP_K = 10
 
 class QdrantVectorStore:
 
-    def __init__(self):
+    def __init__(self,collection_name: str | None = None):
 
         logger.info(
             "Connecting to Qdrant (%s:%s).",
@@ -87,7 +87,12 @@ class QdrantVectorStore:
             logger.info(
                 "Connected to Qdrant successfully."
             )
-
+            self.collection_name = (
+                collection_name
+                if collection_name is not None
+                else COLLECTION_NAME
+            )
+            self.create_collection()
         except Exception:
 
             logger.exception(
@@ -105,7 +110,7 @@ class QdrantVectorStore:
 
         logger.info(
             "Checking hybrid collection '%s'.",
-            COLLECTION_NAME,
+            self.collection_name,
         )
 
         try:
@@ -121,11 +126,11 @@ class QdrantVectorStore:
                 for collection in collections
             ]
 
-            if COLLECTION_NAME in names:
+            if self.collection_name in names:
 
                 logger.info(
                     "Collection '%s' already exists.",
-                    COLLECTION_NAME,
+                    self.collection_name,
                 )
 
                 return
@@ -142,7 +147,7 @@ class QdrantVectorStore:
 
             self.client.create_collection(
 
-                collection_name=COLLECTION_NAME,
+                collection_name=self.collection_name,
 
                 vectors_config={
 
@@ -167,14 +172,14 @@ class QdrantVectorStore:
 
             logger.info(
                 "Hybrid collection '%s' created successfully.",
-                COLLECTION_NAME,
+                self.collection_name,
             )
 
         except Exception:
 
             logger.exception(
                 "Failed to create collection '%s'.",
-                COLLECTION_NAME,
+                self.collection_name,
             )
 
             raise
@@ -198,15 +203,15 @@ class QdrantVectorStore:
 
         logger.warning(
             "Recreating collection '%s'.",
-            COLLECTION_NAME,
+            self.collection_name,
         )
 
         if self.client.collection_exists(
-            COLLECTION_NAME
+            self.collection_name
         ):
 
             self.client.delete_collection(
-                COLLECTION_NAME
+                self.collection_name
             )
 
             logger.info(
@@ -233,7 +238,7 @@ class QdrantVectorStore:
         try:
 
             info = self.client.get_collection(
-                COLLECTION_NAME
+                self.collection_name
             )
 
             logger.info(
@@ -319,6 +324,8 @@ class QdrantVectorStore:
                 using=DENSE_VECTOR_NAME,
 
                 limit=DENSE_TOP_K,
+
+                # filter=query_filter #added
             )
 
             # --------------------------------------------------
@@ -340,6 +347,8 @@ class QdrantVectorStore:
                 using=BM25_VECTOR_NAME,
 
                 limit=SPARSE_TOP_K,
+
+                # filter=query_filter, #added
             )
 
             # --------------------------------------------------
@@ -348,7 +357,7 @@ class QdrantVectorStore:
 
             results = self.client.query_points(
 
-                collection_name=COLLECTION_NAME,
+                collection_name=self.collection_name,
 
                 prefetch=[
                     dense_prefetch,
@@ -360,13 +369,21 @@ class QdrantVectorStore:
                     fusion=models.Fusion.RRF
                 ),
 
-                query_filter=query_filter,
+                # query_filter=query_filter, #removed
 
-                limit=limit,
+                limit=100,#limit
 
                 with_payload=True,
             ).points
+            if thread_id:
+                results = [
+                    result
+                    for result in results
+                    if result.payload
+                    and result.payload.get("thread_id") == thread_id
+                ]
 
+            results=results[:limit]
             # --------------------------------------------------
             # Convert to LangChain Documents
             # --------------------------------------------------
@@ -506,7 +523,7 @@ class QdrantVectorStore:
 
             self.client.upsert(
 
-                collection_name=COLLECTION_NAME,
+                collection_name=self.collection_name,
 
                 wait=True,
 

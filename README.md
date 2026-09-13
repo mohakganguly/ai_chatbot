@@ -1,311 +1,113 @@
+<div align="center">
+
 # Enterprise AI Assistant
 
-> **A production-inspired AI assistant built using LangGraph,
-> Retrieval-Augmented Generation (RAG), Multi-Agent Tool Orchestration,
-> LangSmith Observability, and RAGAS Evaluation.**
+### Production-Grade Agentic AI Assistant with Hybrid RAG, Tool Calling, Reranking, Citations, Observability & DeepEval
 
-------------------------------------------------------------------------
+**LangGraph · LangChain · Qdrant · PostgreSQL · Groq · Mistral AI · Streamlit · LangSmith · DeepEval**
 
-## Overview
+</div>
 
-Enterprise AI Assistant is a modular conversational AI platform designed
-around modern enterprise AI architecture.
+---
 
-Instead of relying on a single LLM call, the assistant dynamically
-routes requests to either a general conversational workflow or an
-iterative agent workflow capable of planning, tool execution, retrieval,
-observation, and grounded answer generation.
+# 📌 Table of Contents
 
-Core capabilities include:
+- [Overview](#-overview)
+- [Key Capabilities](#-key-capabilities)
+- [System Architecture](#-system-architecture)
+- [End-to-End Runtime Workflow](#-end-to-end-runtime-workflow)
+- [Agent Architecture](#-agent-architecture)
+- [Router Workflow](#-router-workflow)
+- [Planner Workflow](#-planner-workflow)
+- [Executor Workflow](#-executor-workflow)
+- [Observation Workflow](#-observation--agent-loop)
+- [Document Ingestion](#-document-ingestion-workflow)
+- [Document Parsing](#-document-parsing-workflow)
+- [Chunking](#-chunking-workflow)
+- [Embeddings](#-embedding-workflow)
+- [Qdrant Storage](#-qdrant-storage-workflow)
+- [Complete RAG Pipeline](#-complete-rag-workflow)
+- [Conversation History](#-conversation-history-workflow)
+- [Query Rewriting](#-query-rewrite-decision-workflow)
+- [Dense Retrieval](#-dense-retrieval-workflow)
+- [BM25 Retrieval](#-bm25-retrieval-workflow)
+- [Hybrid Retrieval](#-hybrid-retrieval-workflow)
+- [RRF Fusion](#-rrf-fusion-workflow)
+- [Cross Encoder Reranking](#-cross-encoder-reranking-workflow)
+- [Context Filtering](#-context-filtering-workflow)
+- [RetrievalResult](#-retrievalresult-workflow)
+- [Citation Builder](#-citation-builder-workflow)
+- [PromptBuilder](#-promptbuilder-workflow)
+- [Generation](#-generation-workflow)
+- [Persistence](#-persistence-workflow)
+- [Observability](#-langsmith-observability-workflow)
+- [Evaluation Architecture](#-complete-deepeval-evaluation-architecture)
+- [Evaluation Dataset](#-evaluation-dataset-workflow)
+- [EvaluationSample](#-evaluationsample-workflow)
+- [Evaluation Collector](#-evaluation-collector-workflow)
+- [Production Retrieval Evaluation](#-production-retrieval-evaluation-workflow)
+- [Production Generation Evaluation](#-production-generation-evaluation-workflow)
+- [DeepEval RAG Triad](#-deepeval-rag-triad-workflow)
+- [Contextual Relevancy](#-contextual-relevancy-workflow)
+- [Contextual Recall](#-contextual-recall-workflow)
+- [Contextual Precision](#-contextual-precision-workflow)
+- [Faithfulness](#-faithfulness-workflow)
+- [Answer Relevancy](#-answer-relevancy-workflow)
+- [Answer Correctness](#-answer-correctness-workflow)
+- [Judge Model](#-deepeval-judge-model-workflow)
+- [Rate Limit & Retry](#-rate-limit--retry-workflow)
+- [DeepEval Runner](#-deepeval-runner-workflow)
+- [Evaluation Report](#-evaluation-report-workflow)
+- [Failure Diagnosis](#-retrieval-vs-generation-failure-diagnosis)
+- [Complete Production + Evaluation Flow](#-complete-production--evaluation-workflow)
+- [Technology Stack](#-technology-stack)
+- [Project Structure](#-project-structure)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Running the Application](#-running-the-application)
+- [Running Evaluation](#-running-evaluation)
+- [Evaluation Metrics](#-evaluation-metrics)
+- [Engineering Principles](#-engineering-principles)
+- [Roadmap](#-roadmap)
 
--   Intelligent query routing
--   Enterprise Retrieval-Augmented Generation (RAG)
--   Multi-agent orchestration
--   Tool execution
--   Context-aware retrieval
--   Automatic citations
--   Persistent conversations
--   LangSmith observability
--   RAGAS evaluation
+---
 
-------------------------------------------------------------------------
+# 📖 Overview
 
-# Features
+The **Enterprise AI Assistant** is a production-oriented agentic AI system designed to answer user queries using enterprise knowledge, execute external tools when required, maintain conversational context, and generate grounded responses with citations.
 
-## Intelligent Query Routing
+The system combines:
 
--   General conversation routing
--   Agent workflow routing
--   Conversation-aware decision making
+- Stateful agent orchestration using **LangGraph**
+- LLM and tool abstractions using **LangChain**
+- Dense semantic retrieval
+- BM25 lexical retrieval
+- Hybrid retrieval
+- Reciprocal Rank Fusion
+- Cross-encoder reranking
+- Context filtering
+- Conversation-aware query rewriting
+- Thread-scoped document retrieval
+- Citation generation
+- Persistent conversations
+- PostgreSQL persistence
+- Qdrant vector storage
+- LangSmith tracing
+- DeepEval-based evaluation
 
-## Enterprise RAG Pipeline
+The central design principle is:
 
--   Query rewrite decision
--   Query rewriting
--   Semantic retrieval
--   Cross-Encoder reranking
--   Context filtering
--   Citation generation
-
-## Multi-Agent Workflow
-
--   Planner Agent
--   Executor Agent
--   Observation Agent
--   Final Answer Generator
-
-## Modular Tool Framework
-
-Supports enterprise tools such as:
-
--   Document Retrieval
--   Web Search
--   Calculator
--   Weather
--   Custom plugins
-
-## Observability
-
-Integrated with **LangSmith** for:
-
--   Node tracing
--   Prompt tracing
--   Tool execution
--   Latency analysis
--   Token usage
--   Workflow visualization
-
-## Evaluation
-
-Integrated with **RAGAS** to measure:
-
--   Faithfulness
--   Answer Relevancy
--   Context Precision
--   Context Recall
--   Response Latency
-
-------------------------------------------------------------------------
-
-# LangGraph Workflow
-
-``` text
-                    User
-                      │
-                      ▼
-                Streamlit UI
-                      │
-                      ▼
-                 Router Node
-          ┌───────────┴───────────┐
-          │                       │
-          ▼                       ▼
-   General Chat             Planner Agent
-                                  │
-                                  ▼
-                             Executor
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │                           │
-                    ▼                           ▼
-             Document Retrieval           External Tools
-                    │                           │
-                    └─────────────┬─────────────┘
-                                  ▼
-                          Observation Agent
-                                  │
-                          Continue Planning?
-                           │              │
-                          Yes            No
-                           │              │
-                           ▼              ▼
-                       Planner      Final Answer
-```
-
-------------------------------------------------------------------------
-
-# Enterprise RAG Pipeline
-
-``` text
+```text
 User Query
-    │
-    ▼
-Conversation History
-    │
-    ▼
-Rewrite Decision
-    │
- ┌──┴─────────┐
- │            │
- ▼            ▼
-Original   Query Rewrite
- Query          │
- └──────┬───────┘
-        ▼
- Semantic Retrieval
-        │
-        ▼
- Cross Encoder Reranker
-        │
-        ▼
- Context Filtering
-        │
-        ▼
- Citation Builder
-        │
-        ▼
- Context to LLM
-        │
-        ▼
- Final Response
-```
-
-------------------------------------------------------------------------
-
-# Document Ingestion Pipeline
-
-``` text
-Documents
-    │
-    ▼
-Loaders
-    │
-    ▼
-Text Extraction
-    │
-    ▼
-Recursive Text Splitter
-    │
-    ▼
-BGE Embeddings
-    │
-    ▼
-Qdrant Vector Database
-```
-
-------------------------------------------------------------------------
-
-# Tech Stack
-
-### Backend
-
--   Python
--   FastAPI
--   LangGraph
--   LangChain
-
-### Models
-
--   Groq
--   Mistral AI
-
-### Retrieval
-
--   Qdrant
--   BAAI/bge-small-en-v1.5
--   BAAI/bge-reranker-base
-
-### Database
-
--   PostgreSQL
--   SQLAlchemy
-
-### Frontend
-
--   Streamlit
-
-### Observability
-
--   LangSmith
-
-### Evaluation
-
--   RAGAS
-
-------------------------------------------------------------------------
-
-# Project Structure
-
-``` text
-.
-├── agents/
-├── graph/
-├── rag/
-├── tools/
-├── observability/
-├── evals/
-├── db/
-├── frontend/
-├── utils/
-├── config.py
-└── app.py
-```
-
-------------------------------------------------------------------------
-
-# Installation
-
-``` bash
-git clone <repository-url>
-cd enterprise-ai-assistant
-
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-pip install -r requirements.txt
-```
-
-Create a `.env` file:
-
-``` env
-GROQ_API_KEY=
-MISTRAL_API_KEY=
-TAVILY_API_KEY=
-LANGSMITH_API_KEY=
-
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_PROJECT=Enterprise AI Assistant
-```
-
-Run:
-
-``` bash
-streamlit run app.py
-```
-
-------------------------------------------------------------------------
-
-# Evaluation
-
-``` bash
-python -m evals.run --suite rag
-```
-
-Reports include:
-
--   Faithfulness
--   Answer Relevancy
--   Context Precision
--   Context Recall
--   Latency
-
-------------------------------------------------------------------------
-
-# Future Roadmap
-
--   Guardrails
--   Redis Caching
--   Celery Workers
--   Hybrid Search
--   Docker Deployment
--   CI/CD
--   Authentication & RBAC
--   Multi-format document ingestion
-
-------------------------------------------------------------------------
-
-# License
-
-MIT License
+    ↓
+Agentic Reasoning
+    ↓
+Retrieval / Tool Execution
+    ↓
+Observation
+    ↓
+Grounded Generation
+    ↓
+Citations
+    ↓
+Final Answer

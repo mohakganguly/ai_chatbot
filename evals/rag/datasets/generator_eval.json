@@ -1,0 +1,42 @@
+[
+  {
+    "input": "What is machine learning, and how does it differ from traditional hard-coded programming?",
+    "expected_output": "Machine learning is a subfield of artificial intelligence that enables computer systems to perform tasks by learning patterns and inference from data rather than relying on explicitly hard-coded instructions. It learns from historical data, identifies patterns, and makes decisions with minimal human intervention."
+  },
+  {
+    "input": "What is the difference between classification and regression in supervised learning?",
+    "expected_output": "Classification predicts discrete categorical labels, such as whether an email is spam or not spam. Regression predicts continuous numerical values, such as the future price of a house based on its features."
+  },
+  {
+    "input": "How does unsupervised learning differ from supervised learning?",
+    "expected_output": "Unsupervised learning uses completely unlabeled data and discovers hidden structures, patterns, or relationships without being given the correct answers. In contrast, supervised learning uses labeled data where each example is paired with the correct output."
+  },
+  {
+    "input": "How does reinforcement learning work?",
+    "expected_output": "In reinforcement learning, an agent interacts with an environment and learns through trial and error. The agent observes the current state, selects an action, transitions to a new state, and receives a reward or punishment. The goal is to learn an optimal policy that maximizes long-term cumulative reward."
+  },
+  {
+    "input": "Why is logistic regression considered a classification algorithm despite its name?",
+    "expected_output": "Logistic regression is used primarily for binary classification. It applies a logistic or sigmoid function to map a continuous output to a probability between 0 and 1, which is then thresholded to assign the data point to a discrete class."
+  },
+  {
+    "input": "How do Random Forests reduce the overfitting problem of individual decision trees?",
+    "expected_output": "Random Forests reduce overfitting by building multiple decision trees and combining their predictions. They introduce randomness through bootstrapping subsets of data and selecting subsets of features at each split. For classification, they use the mode of predictions, while for regression they use the mean prediction."
+  },
+  {
+    "input": "What is the kernel trick in Support Vector Machines?",
+    "expected_output": "The kernel trick allows Support Vector Machines to handle non-linear classification boundaries by using mathematical kernel functions, such as Polynomial or Radial Basis Functions, to implicitly map input data into a higher-dimensional space where a linear separator can be found."
+  },
+  {
+    "input": "What are the main tasks performed during data preprocessing and cleaning?",
+    "expected_output": "Data preprocessing and cleaning involves handling missing values through imputation or removal, identifying and mitigating extreme outliers, smoothing noisy data, resolving inconsistencies in formatting, and encoding categorical variables into numerical formats such as one-hot encoding."
+  },
+  {
+    "input": "What is the difference between model parameters and hyperparameters?",
+    "expected_output": "Model parameters are adjusted by the algorithm during training to minimize the error function. Hyperparameters are external configurations whose values are not estimated directly from the data, such as the depth of a decision tree or the learning rate of a neural network."
+  },
+  {
+    "input": "What are the major ethical challenges associated with machine learning?",
+    "expected_output": "Major ethical challenges include algorithmic bias and the lack of interpretability and explainability in complex models. Biased historical data can cause models to perpetuate or amplify societal inequalities, while black-box models make it difficult to explain important decisions such as loan denials or medical diagnoses."
+  }
+]

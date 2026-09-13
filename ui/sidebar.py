@@ -23,7 +23,9 @@ def render_sidebar(conversations):
     """
 
     st.sidebar.title("Enterprise AI Assistant")
-
+    st.sidebar.write(
+        f"Thread ID: {st.session_state['thread_id']}"
+    )
     st.sidebar.divider()
 
     new_chat = st.sidebar.button(
