@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 Enterprise AI Assistant Chatbot
+# 🤖 AI Assistant Chatbot
 
 ### AI Assistant with Hybrid RAG · Tool Calling · Reranking · Citations · Observability · DeepEval
 
