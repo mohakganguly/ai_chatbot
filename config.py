@@ -47,7 +47,7 @@ CHUNK_OVERLAP = 200
 QDRANT_URL = "http://localhost:6333"
 
 COLLECTION_NAME = "enterprise_rag"
-
+EVAL_COLLECTION_NAME = "enterprise_rag_eval"
 QDRANT_HOST = "localhost"
 
 QDRANT_PORT = 6333
