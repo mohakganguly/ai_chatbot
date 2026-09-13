@@ -343,89 +343,64 @@ flowchart TD
 
 </div>
 
+## 🧪 Evaluation & Benchmarking
+
+The evaluation framework is built entirely around **DeepEval** and evaluates the production RAG pipeline using benchmark datasets.
+
+The evaluation architecture is designed to answer two questions independently:
+
+1. **Did the retrieval system retrieve the right context?**
+2. **Did the generation system produce a correct, relevant, and grounded answer from that context?**
+
 ---
 
-# Project Structure
+## 📐 Evaluation Architecture
 
-``` text
-.
-├── agents/
-├── graph/
-├── rag/
-├── tools/
-├── observability/
-├── evals/
-├── db/
-├── frontend/
-├── utils/
-├── config.py
-└── app.py
-```
+```mermaid
+flowchart TD
 
-------------------------------------------------------------------------
+    A[Evaluation Dataset]
 
-# Installation
+    B[EvaluationSample]
 
-``` bash
-git clone <repository-url>
-cd enterprise-ai-assistant
+    C[Evaluation Collector]
 
-python -m venv .venv
+    D[Production Retriever]
 
-# Windows
-.venv\Scripts\activate
+    E[RetrievalResult]
 
-pip install -r requirements.txt
-```
+    F[Retrieved Context]
 
-Create a `.env` file:
+    G[Production Generator]
 
-``` env
-GROQ_API_KEY=
-MISTRAL_API_KEY=
-TAVILY_API_KEY=
-LANGSMITH_API_KEY=
+    H[Generated Answer]
 
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_PROJECT=Enterprise AI Assistant
-```
+    I[LLMTestCase]
 
-Run:
+    J[DeepEval]
 
-``` bash
-streamlit run app.py
-```
+    K[Evaluation Metrics]
 
-------------------------------------------------------------------------
+    L[Evaluation Report]
 
-# Evaluation
+    A --> B
+    B --> C
 
-``` bash
-python -m evals.run --suite rag
-```
+    C --> D
+    D --> E
+    E --> F
 
-Reports include:
+    F --> G
+    G --> H
 
--   Faithfulness
--   Answer Relevancy
--   Context Precision
--   Context Recall
--   Latency
+    B --> I
+    F --> I
+    H --> I
 
-------------------------------------------------------------------------
+    I --> J
+    J --> K
+    K --> L
 
-# Future Roadmap
-
--   Guardrails
--   Redis Caching
--   Celery Workers
--   Hybrid Search
--   Docker Deployment
--   CI/CD
--   Authentication & RBAC
--   Multi-format document ingestion
-
-------------------------------------------------------------------------
 
 # License
 
