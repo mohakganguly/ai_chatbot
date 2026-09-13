@@ -345,126 +345,88 @@ flowchart TD
 
 ---
 
-## 📂 Project Structure
+# Project Structure
 
-```text
+``` text
 .
-├── app/
-│   ├── agents/
-│   │   ├── planner_agent.py
-│   │   ├── executor.py
-│   │   ├── observation_agent.py
-│   │   └── answer_agent.py
-│   ├── tools/
-│   │   ├── registry.py
-│   │   ├── calculator_tool.py
-│   │   ├── python_tool.py
-│   │   ├── web_search_tool.py
-│   │   └── retriever_tool.py
-│   ├── services/
-│   │   ├── document_service.py
-│   │   ├── ingestion_service.py
-│   │   ├── calculator_service.py
-│   │   ├── python_service.py
-│   │   ├── web_search_service.py
-│   │   └── retrieval_service.py
-│   ├── rag/
-│   │   ├── dense_retrieval.py
-│   │   ├── bm25_retrieval.py
-│   │   ├── rrf_fusion.py
-│   │   ├── reranker.py
-│   │   ├── context_filter.py
-│   │   ├── citation_builder.py
-│   │   └── prompt_builder.py
-│   └── evaluation/
-│       ├── evaluation_collector.py
-│       ├── deepeval_runner.py
-│       └── judge_model.py
-├── streamlit_app.py
-├── requirements.txt
-└── README.md
+├── agents/
+├── graph/
+├── rag/
+├── tools/
+├── observability/
+├── evals/
+├── db/
+├── frontend/
+├── utils/
+├── config.py
+└── app.py
 ```
 
----
+------------------------------------------------------------------------
 
-## ⚙️ Installation
+# Installation
 
-```bash
-git clone https://github.com/<your-username>/enterprise-ai-assistant.git
+``` bash
+git clone <repository-url>
 cd enterprise-ai-assistant
 
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
 
 pip install -r requirements.txt
 ```
 
-# 🧪 Evaluation & Benchmarking
+Create a `.env` file:
 
-The evaluation framework is built entirely around **DeepEval** and evaluates the production RAG pipeline using benchmark datasets.
+``` env
+GROQ_API_KEY=
+MISTRAL_API_KEY=
+TAVILY_API_KEY=
+LANGSMITH_API_KEY=
 
-The evaluation architecture is designed to answer two questions independently:
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT=Enterprise AI Assistant
+```
 
-1. **Did the retrieval system retrieve the right context?**
-2. **Did the generation system produce a correct, relevant, and grounded answer from that context?**
+Run:
 
----
+``` bash
+streamlit run app.py
+```
 
-## 📐 Evaluation Architecture
+------------------------------------------------------------------------
 
-```mermaid
-flowchart TD
+# Evaluation
 
-    A[Evaluation Dataset]
+``` bash
+python -m evals.run --suite rag
+```
 
-    B[EvaluationSample]
+Reports include:
 
-    C[Evaluation Collector]
+-   Faithfulness
+-   Answer Relevancy
+-   Context Precision
+-   Context Recall
+-   Latency
 
-    D[Production Retriever]
+------------------------------------------------------------------------
 
-    E[RetrievalResult]
+# Future Roadmap
 
-    F[Retrieved Context]
+-   Guardrails
+-   Redis Caching
+-   Celery Workers
+-   Hybrid Search
+-   Docker Deployment
+-   CI/CD
+-   Authentication & RBAC
+-   Multi-format document ingestion
 
-    G[Production Generator]
+------------------------------------------------------------------------
 
-    H[Generated Answer]
+# License
 
-    I[LLMTestCase]
-
-    J[DeepEval]
-
-    K[Evaluation Metrics]
-
-    L[Evaluation Report]
-
-    A --> B
-    B --> C
-
-    C --> D
-    D --> E
-    E --> F
-
-    F --> G
-    G --> H
-
-    B --> I
-    F --> I
-    H --> I
-
-    I --> J
-    J --> K
-    K --> L
-## 🛠️ Engineering Principles
-
-- **Deterministic orchestration** — the agent loop is an explicit LangGraph state machine, not implicit prompt chaining
-- **Separation of concerns** — tools, services, and agents are decoupled behind a registry
-- **Grounded generation** — every claim traces back to a retrieved, cited passage
-- **Observability by default** — every run is traced end-to-end in LangSmith
-- **Evaluation as a first-class citizen** — production traffic is continuously sampled and scored
-
-
-Made with ⚙️ LangGraph · 🔍 Hybrid RAG · 📎 Citations
-
-</div>
+MIT License
